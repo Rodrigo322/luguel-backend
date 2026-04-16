@@ -1,4 +1,8 @@
 import { DomainError } from "../../domain/shared/errors/domain-error";
+import {
+  ensureRentalStatusChangeAuthorized,
+  ensureRentalStatusTransition
+} from "../../domain/rentals/services/rental-rules";
 import { getListingById, getRentalById, updateRentalStatus } from "../../infra/persistence/in-memory-store";
 
 interface UpdateRentalStatusInput {
@@ -21,12 +25,13 @@ export async function updateRentalStatusFlow(input: UpdateRentalStatusInput) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
   }
 
-  const isAdmin = input.requesterRole === "ADMIN";
-  const isOwner = listing.ownerId === input.requesterId;
+  ensureRentalStatusChangeAuthorized({
+    requesterId: input.requesterId,
+    requesterRole: input.requesterRole,
+    listingOwnerId: listing.ownerId
+  });
 
-  if (!isAdmin && !isOwner) {
-    throw new DomainError("Only owner or admin can update rental status.", 403, "RentalForbidden");
-  }
+  ensureRentalStatusTransition(rental.status, input.status);
 
   const updatedRental = await updateRentalStatus(rental.id, input.status);
 

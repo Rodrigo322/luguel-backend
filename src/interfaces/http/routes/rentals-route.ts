@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { getRentalDetails } from "../../../application/rentals/get-rental-details";
+import { listRentals } from "../../../application/rentals/list-rentals";
 import { requestRental } from "../../../application/rentals/request-rental";
 import { updateRentalStatusFlow } from "../../../application/rentals/update-rental-status";
 import { writeAuditLog } from "../../../infra/logging/audit-logger";
@@ -30,6 +32,26 @@ const updateRentalStatusBodySchema = z.object({
   status: z.enum(["APPROVED", "ACTIVE", "COMPLETED", "CANCELED"])
 });
 
+function serializeRental(rental: {
+  id: string;
+  listingId: string;
+  tenantId: string;
+  startDate: Date;
+  endDate: Date;
+  totalPrice: number;
+  status: "REQUESTED" | "APPROVED" | "ACTIVE" | "COMPLETED" | "CANCELED" | "DISPUTED";
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    ...rental,
+    startDate: rental.startDate.toISOString(),
+    endDate: rental.endDate.toISOString(),
+    createdAt: rental.createdAt.toISOString(),
+    updatedAt: rental.updatedAt.toISOString()
+  };
+}
+
 export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
@@ -38,8 +60,8 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
     url: "/rentals",
     schema: {
       tags: ["Rentals"],
-      summary: "Solicita locação",
-      description: "Cria solicitação de locação para anúncio ativo.",
+      summary: "Solicita locacao",
+      description: "Cria solicitacao de locacao para anuncio ativo.",
       body: requestRentalBodySchema,
       response: {
         201: rentalSchema,
@@ -78,13 +100,92 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
           }
         });
 
-        return reply.status(201).send({
-          ...rental,
-          startDate: rental.startDate.toISOString(),
-          endDate: rental.endDate.toISOString(),
-          createdAt: rental.createdAt.toISOString(),
-          updatedAt: rental.updatedAt.toISOString()
+        return reply.status(201).send(serializeRental(rental));
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
+    }
+  });
+
+  typedApp.route({
+    method: "GET",
+    url: "/rentals",
+    schema: {
+      tags: ["Rentals"],
+      summary: "Lista locacoes",
+      description: "Lista locacoes do usuario autenticado (admin recebe todas).",
+      response: {
+        200: z.object({
+          rentals: z.array(rentalSchema)
+        }),
+        401: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      const rentals = (await listRentals({
+        requesterId: context.user.id,
+        requesterRole: context.user.role
+      })).map(serializeRental);
+
+      writeAuditLog(request.log, {
+        action: "RENTAL_LIST_FETCHED",
+        actorId: context.user.id,
+        entityType: "rental",
+        entityId: "collection",
+        metadata: {
+          count: rentals.length
+        }
+      });
+
+      return reply.status(200).send({ rentals });
+    }
+  });
+
+  typedApp.route({
+    method: "GET",
+    url: "/rentals/:rentalId",
+    schema: {
+      tags: ["Rentals"],
+      summary: "Consulta locacao",
+      description: "Retorna detalhes de locacao com controle de acesso por participante ou admin.",
+      params: z.object({
+        rentalId: z.string().uuid()
+      }),
+      response: {
+        200: rentalSchema,
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() }),
+        404: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      try {
+        const rental = await getRentalDetails({
+          requesterId: context.user.id,
+          requesterRole: context.user.role,
+          rentalId: request.params.rentalId
         });
+
+        writeAuditLog(request.log, {
+          action: "RENTAL_FETCHED",
+          actorId: context.user.id,
+          entityType: "rental",
+          entityId: rental.id
+        });
+
+        return reply.status(200).send(serializeRental(rental));
       } catch (error) {
         handleDomainError(reply, error);
       }
@@ -96,8 +197,8 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
     url: "/rentals/:rentalId/status",
     schema: {
       tags: ["Rentals"],
-      summary: "Atualiza status de locação",
-      description: "Atualiza status de locação por locador dono do anúncio ou admin.",
+      summary: "Atualiza status de locacao",
+      description: "Atualiza status de locacao por locador dono do anuncio ou admin.",
       params: z.object({
         rentalId: z.string().uuid()
       }),
@@ -134,13 +235,7 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
           }
         });
 
-        return reply.status(200).send({
-          ...updated,
-          startDate: updated.startDate.toISOString(),
-          endDate: updated.endDate.toISOString(),
-          createdAt: updated.createdAt.toISOString(),
-          updatedAt: updated.updatedAt.toISOString()
-        });
+        return reply.status(200).send(serializeRental(updated));
       } catch (error) {
         handleDomainError(reply, error);
       }

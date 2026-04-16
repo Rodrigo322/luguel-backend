@@ -1,4 +1,8 @@
 import { DomainError } from "../../domain/shared/errors/domain-error";
+import {
+  ensureValidDailyPrice,
+  resolveListingStatusFromRisk
+} from "../../domain/listings/services/listing-rules";
 import { assessListingRisk } from "../../domain/shared/risk/risk-assessor";
 import {
   createListingRecord,
@@ -21,9 +25,11 @@ export async function createListing(input: CreateListingInput) {
     throw new DomainError("Listing owner was not found.", 404, "OwnerNotFound");
   }
 
-  if (input.dailyPrice <= 0) {
-    throw new DomainError("Daily price must be greater than zero.", 400, "InvalidDailyPrice");
+  if (owner.isBanned) {
+    throw new DomainError("Banned user cannot create listings.", 403, "BannedUserForbidden");
   }
+
+  ensureValidDailyPrice(input.dailyPrice);
 
   const risk = assessListingRisk({
     title: input.title,
@@ -38,7 +44,7 @@ export async function createListing(input: CreateListingInput) {
     description: input.description,
     dailyPrice: input.dailyPrice,
     riskLevel: risk.level,
-    status: risk.level === "CRITICAL" ? "FLAGGED" : "ACTIVE"
+    status: resolveListingStatusFromRisk(risk.level)
   });
 
   await createRiskAssessmentRecord({

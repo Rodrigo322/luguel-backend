@@ -4,7 +4,7 @@
   "description": "Backend DDD para plataforma universal de aluguel.",
   "main": "dist/interfaces/http/server.js",
   "scripts": {
-    "dev": "tsx watch src/interfaces/http/server.ts",
+    "dev": "node --watch --import tsx src/interfaces/http/server.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/interfaces/http/server.js",
     "test": "vitest run",

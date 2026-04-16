@@ -1,4 +1,10 @@
 import { DomainError } from "../../domain/shared/errors/domain-error";
+import {
+  calculateRentalDays,
+  ensureListingAvailableForRental,
+  ensureNotSelfRental,
+  ensureValidRentalPeriod
+} from "../../domain/rentals/services/rental-rules";
 import { createRentalRecord, getListingById, getUserById } from "../../infra/persistence/in-memory-store";
 
 interface RequestRentalInput {
@@ -8,17 +14,15 @@ interface RequestRentalInput {
   endDate: Date;
 }
 
-function calculateRentalDays(startDate: Date, endDate: Date): number {
-  const millisecondsPerDay = 1000 * 60 * 60 * 24;
-  const difference = Math.ceil((endDate.getTime() - startDate.getTime()) / millisecondsPerDay);
-  return Math.max(1, difference);
-}
-
 export async function requestRental(input: RequestRentalInput) {
   const tenant = await getUserById(input.tenantId);
 
   if (!tenant) {
     throw new DomainError("Tenant not found.", 404, "TenantNotFound");
+  }
+
+  if (tenant.isBanned) {
+    throw new DomainError("Banned user cannot request rentals.", 403, "BannedUserForbidden");
   }
 
   const listing = await getListingById(input.listingId);
@@ -27,17 +31,11 @@ export async function requestRental(input: RequestRentalInput) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
   }
 
-  if (listing.status !== "ACTIVE") {
-    throw new DomainError("Listing is not available for rental.", 400, "ListingUnavailable");
-  }
+  ensureListingAvailableForRental(listing.status);
 
-  if (listing.ownerId === tenant.id) {
-    throw new DomainError("Owner cannot rent their own listing.", 400, "SelfRentalNotAllowed");
-  }
+  ensureNotSelfRental(listing.ownerId, tenant.id);
 
-  if (input.startDate >= input.endDate) {
-    throw new DomainError("Invalid rental period.", 400, "InvalidRentalPeriod");
-  }
+  ensureValidRentalPeriod(input.startDate, input.endDate);
 
   const rentalDays = calculateRentalDays(input.startDate, input.endDate);
   const totalPrice = rentalDays * listing.dailyPrice;

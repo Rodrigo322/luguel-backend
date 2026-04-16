@@ -1,4 +1,5 @@
 import { DomainError } from "../../domain/shared/errors/domain-error";
+import { ensureListingIsCriticalCase } from "../../domain/admin/services/admin-rules";
 import {
   createAdminAuditLogRecord,
   getListingById,
@@ -20,9 +21,7 @@ export async function suspendCriticalListing(input: SuspendCriticalListingInput)
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
   }
 
-  if (listing.riskLevel !== "CRITICAL") {
-    throw new DomainError("Admin intervention is allowed only for critical listings.", 400, "NotCriticalCase");
-  }
+  ensureListingIsCriticalCase(listing.riskLevel);
 
   const suspended = await updateListingStatus(listing.id, "SUSPENDED");
 

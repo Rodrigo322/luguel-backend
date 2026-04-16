@@ -1,4 +1,10 @@
 import { DomainError } from "../../domain/shared/errors/domain-error";
+import {
+  ensureBoostAmountIsValid,
+  ensureBoostDurationIsValid,
+  ensureBoostPaymentConfirmed,
+  ensureBoostWriteAccess
+} from "../../domain/boost/services/boost-rules";
 import { createBoostRecord, getListingById, getUserById } from "../../infra/persistence/in-memory-store";
 
 interface CreateBoostInput {
@@ -22,24 +28,14 @@ export async function createBoost(input: CreateBoostInput) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
   }
 
-  const isAdmin = requester.role === "ADMIN";
-  const isOwner = listing.ownerId === requester.id;
-
-  if (!isAdmin && !isOwner) {
-    throw new DomainError("Only listing owner or admin can boost.", 403, "BoostForbidden");
-  }
-
-  if (!input.paymentConfirmed) {
-    throw new DomainError("Payment confirmation is required for boost.", 400, "PaymentRequired");
-  }
-
-  if (input.amount <= 0) {
-    throw new DomainError("Boost amount must be greater than zero.", 400, "InvalidBoostAmount");
-  }
-
-  if (input.days < 1 || input.days > 30) {
-    throw new DomainError("Boost duration must be between 1 and 30 days.", 400, "InvalidBoostDuration");
-  }
+  ensureBoostWriteAccess({
+    requesterId: requester.id,
+    requesterRole: requester.role,
+    listingOwnerId: listing.ownerId
+  });
+  ensureBoostPaymentConfirmed(input.paymentConfirmed);
+  ensureBoostAmountIsValid(input.amount);
+  ensureBoostDurationIsValid(input.days);
 
   const startsAt = new Date();
   const endsAt = new Date(startsAt.getTime() + input.days * 24 * 60 * 60 * 1000);

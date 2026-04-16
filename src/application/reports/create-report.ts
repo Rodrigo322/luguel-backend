@@ -1,6 +1,13 @@
 import { DomainError } from "../../domain/shared/errors/domain-error";
-import type { RiskLevel } from "../../domain/shared/risk/risk-level";
-import { createReportRecord, getListingById, getRentalById, getUserById } from "../../infra/persistence/in-memory-store";
+import { classifyReportRisk, ensureReportHasValidTarget } from "../../domain/reports/services/report-rules";
+import {
+  createReportRecord,
+  getListingById,
+  getRentalById,
+  getUserById,
+  listReportRecords,
+  updateListingStatus
+} from "../../infra/persistence/in-memory-store";
 
 interface CreateReportInput {
   reporterId: string;
@@ -10,24 +17,6 @@ interface CreateReportInput {
   details?: string;
 }
 
-function classifyReportRisk(reason: string, details?: string): RiskLevel {
-  const content = `${reason} ${details ?? ""}`.toLowerCase();
-
-  if (content.includes("golpe") || content.includes("fraude") || content.includes("amea")) {
-    return "CRITICAL";
-  }
-
-  if (content.includes("abuso") || content.includes("discrimina") || content.includes("extors")) {
-    return "HIGH";
-  }
-
-  if (content.includes("spam") || content.includes("suspeito")) {
-    return "MEDIUM";
-  }
-
-  return "LOW";
-}
-
 export async function createReport(input: CreateReportInput) {
   const reporter = await getUserById(input.reporterId);
 
@@ -35,9 +24,7 @@ export async function createReport(input: CreateReportInput) {
     throw new DomainError("Reporter not found.", 404, "ReporterNotFound");
   }
 
-  if (!input.listingId && !input.rentalId) {
-    throw new DomainError("Report must target listing or rental.", 400, "InvalidReportTarget");
-  }
+  ensureReportHasValidTarget({ listingId: input.listingId, rentalId: input.rentalId });
 
   if (input.listingId && !(await getListingById(input.listingId))) {
     throw new DomainError("Listing target not found.", 404, "ListingNotFound");
@@ -49,7 +36,7 @@ export async function createReport(input: CreateReportInput) {
 
   const riskLevel = classifyReportRisk(input.reason, input.details);
 
-  return createReportRecord({
+  const report = await createReportRecord({
     reporterId: reporter.id,
     listingId: input.listingId,
     rentalId: input.rentalId,
@@ -57,4 +44,20 @@ export async function createReport(input: CreateReportInput) {
     details: input.details,
     riskLevel
   });
+
+  if (input.listingId) {
+    const openReportsForListing = (await listReportRecords()).filter(
+      (listedReport) => listedReport.listingId === input.listingId && listedReport.status === "OPEN"
+    );
+
+    if (openReportsForListing.length >= 3) {
+      const listing = await getListingById(input.listingId);
+
+      if (listing && listing.status !== "SUSPENDED" && listing.status !== "ARCHIVED") {
+        await updateListingStatus(listing.id, "PENDING_VALIDATION");
+      }
+    }
+  }
+
+  return report;
 }
