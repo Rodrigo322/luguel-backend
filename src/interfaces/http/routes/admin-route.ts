@@ -3,6 +3,7 @@ import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { listCriticalReports } from "../../../application/admin/list-critical-reports";
 import { suspendCriticalListing } from "../../../application/admin/suspend-critical-listing";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import type { AppAuth } from "../auth/create-auth";
 import { requireAuth, requireRoles } from "../auth/guards";
 import { handleDomainError } from "../errors/handle-domain-error";
@@ -67,6 +68,16 @@ export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         updatedAt: report.updatedAt.toISOString()
       }));
 
+      writeAuditLog(request.log, {
+        action: "ADMIN_CRITICAL_REPORTS_FETCHED",
+        actorId: context.user.id,
+        entityType: "report",
+        entityId: "critical-open",
+        metadata: {
+          count: reports.length
+        }
+      });
+
       return reply.status(200).send({ reports });
     }
   });
@@ -107,6 +118,16 @@ export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<v
           adminId: context.user.id,
           listingId: request.params.listingId,
           reason: request.body.reason
+        });
+
+        writeAuditLog(request.log, {
+          action: "ADMIN_LISTING_SUSPENDED",
+          actorId: context.user.id,
+          entityType: "listing",
+          entityId: suspendedListing.id,
+          metadata: {
+            reason: request.body.reason
+          }
         });
 
         return reply.status(200).send({

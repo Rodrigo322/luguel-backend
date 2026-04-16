@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { updateUserRole } from "../../../infra/persistence/in-memory-store";
 import { requireAuth } from "../auth/guards";
 import type { AppAuth } from "../auth/create-auth";
@@ -38,6 +39,13 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
       if (!context) {
         return;
       }
+
+      writeAuditLog(request.log, {
+        action: "USER_PROFILE_FETCHED",
+        actorId: context.user.id,
+        entityType: "user",
+        entityId: context.user.id
+      });
 
       return reply.status(200).send({
         id: context.user.id,
@@ -78,6 +86,16 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
           message: "Authenticated user was not found."
         });
       }
+
+      writeAuditLog(request.log, {
+        action: "USER_ROLE_UPDATED",
+        actorId: context.user.id,
+        entityType: "user",
+        entityId: context.user.id,
+        metadata: {
+          newRole: updatedUser.role
+        }
+      });
 
       return reply.status(200).send({
         id: updatedUser.id,

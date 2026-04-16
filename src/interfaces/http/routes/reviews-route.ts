@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { createReview } from "../../../application/reviews/create-review";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import type { AppAuth } from "../auth/create-auth";
 import { requireAuth } from "../auth/guards";
 import { handleDomainError } from "../errors/handle-domain-error";
@@ -56,6 +57,18 @@ export async function reviewsRoute(app: FastifyInstance, auth: AppAuth): Promise
           rentalId: request.body.rentalId,
           rating: request.body.rating,
           comment: request.body.comment
+        });
+
+        writeAuditLog(request.log, {
+          action: "REVIEW_CREATED",
+          actorId: context.user.id,
+          entityType: "review",
+          entityId: review.id,
+          metadata: {
+            listingId: review.listingId,
+            rentalId: review.rentalId,
+            rating: review.rating
+          }
         });
 
         return reply.status(201).send({

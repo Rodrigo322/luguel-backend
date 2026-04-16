@@ -3,6 +3,7 @@ import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { requestRental } from "../../../application/rentals/request-rental";
 import { updateRentalStatusFlow } from "../../../application/rentals/update-rental-status";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import type { AppAuth } from "../auth/create-auth";
 import { requireAuth, requireRoles } from "../auth/guards";
 import { handleDomainError } from "../errors/handle-domain-error";
@@ -66,6 +67,17 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
           endDate: new Date(request.body.endDate)
         });
 
+        writeAuditLog(request.log, {
+          action: "RENTAL_REQUESTED",
+          actorId: context.user.id,
+          entityType: "rental",
+          entityId: rental.id,
+          metadata: {
+            listingId: rental.listingId,
+            status: rental.status
+          }
+        });
+
         return reply.status(201).send({
           ...rental,
           startDate: rental.startDate.toISOString(),
@@ -110,6 +122,16 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
           requesterRole: context.user.role,
           rentalId: request.params.rentalId,
           status: request.body.status
+        });
+
+        writeAuditLog(request.log, {
+          action: "RENTAL_STATUS_UPDATED",
+          actorId: context.user.id,
+          entityType: "rental",
+          entityId: updated.id,
+          metadata: {
+            status: updated.status
+          }
         });
 
         return reply.status(200).send({

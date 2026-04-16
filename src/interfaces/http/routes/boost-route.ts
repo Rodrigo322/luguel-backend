@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { createBoost } from "../../../application/boost/create-boost";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import type { AppAuth } from "../auth/create-auth";
 import { requireAuth, requireRoles } from "../auth/guards";
 import { handleDomainError } from "../errors/handle-domain-error";
@@ -60,6 +61,18 @@ export async function boostRoute(app: FastifyInstance, auth: AppAuth): Promise<v
           amount: request.body.amount,
           days: request.body.days,
           paymentConfirmed: request.body.paymentConfirmed
+        });
+
+        writeAuditLog(request.log, {
+          action: "BOOST_CREATED",
+          actorId: context.user.id,
+          entityType: "boost",
+          entityId: boost.id,
+          metadata: {
+            listingId: boost.listingId,
+            amount: boost.amount,
+            status: boost.status
+          }
         });
 
         return reply.status(201).send({

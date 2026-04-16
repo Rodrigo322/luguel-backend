@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { createListing } from "../../../application/listings/create-listing";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { getListingById, listListingRecords } from "../../../infra/persistence/in-memory-store";
 import type { AppAuth } from "../auth/create-auth";
 import { requireAuth } from "../auth/guards";
@@ -64,6 +65,17 @@ export async function listingsRoute(app: FastifyInstance, auth: AppAuth): Promis
           dailyPrice: request.body.dailyPrice
         });
 
+        writeAuditLog(request.log, {
+          action: "LISTING_CREATED",
+          actorId: context.user.id,
+          entityType: "listing",
+          entityId: result.listing.id,
+          metadata: {
+            riskLevel: result.risk.level,
+            status: result.listing.status
+          }
+        });
+
         return reply.status(201).send({
           listing: {
             ...result.listing,
@@ -98,6 +110,15 @@ export async function listingsRoute(app: FastifyInstance, auth: AppAuth): Promis
         updatedAt: listing.updatedAt.toISOString()
       }));
 
+      writeAuditLog(reply.log, {
+        action: "LISTING_LIST_FETCHED",
+        entityType: "listing",
+        entityId: "collection",
+        metadata: {
+          count: listings.length
+        }
+      });
+
       return reply.status(200).send({ listings });
     }
   });
@@ -126,6 +147,12 @@ export async function listingsRoute(app: FastifyInstance, auth: AppAuth): Promis
           message: "Listing not found."
         });
       }
+
+      writeAuditLog(request.log, {
+        action: "LISTING_FETCHED",
+        entityType: "listing",
+        entityId: listing.id
+      });
 
       return reply.status(200).send({
         ...listing,

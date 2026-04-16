@@ -2,6 +2,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { upsertUserFromAuth } from "../../../infra/persistence/in-memory-store";
 import { env } from "../../../shared/config/env";
 import { requireAuth } from "../auth/guards";
@@ -61,6 +62,15 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
       });
 
       if (authResponse.status >= 400) {
+        writeAuditLog(request.log, {
+          action: "SIGNUP_FAILED",
+          entityType: "auth",
+          entityId: request.body.email.toLowerCase(),
+          metadata: {
+            reason: "provider-rejected-request"
+          }
+        });
+
         return reply.status(400).send({
           error: "SignUpError",
           message: "Unable to complete sign up request."
@@ -77,6 +87,17 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
         id: payload.user.id,
         email: payload.user.email,
         name: payload.user.name
+      });
+
+      writeAuditLog(request.log, {
+        action: "SIGNUP_SUCCEEDED",
+        actorId: user.id,
+        entityType: "user",
+        entityId: user.id,
+        metadata: {
+          email: user.email,
+          role: user.role
+        }
       });
 
       return reply.status(201).send({
@@ -111,6 +132,15 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
       });
 
       if (authResponse.status >= 400) {
+        writeAuditLog(request.log, {
+          action: "SIGNIN_FAILED",
+          entityType: "auth",
+          entityId: request.body.email.toLowerCase(),
+          metadata: {
+            reason: "invalid-credentials"
+          }
+        });
+
         return reply.status(401).send({
           error: "InvalidCredentials",
           message: "Invalid credentials."
@@ -127,6 +157,17 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
         id: payload.user.id,
         email: payload.user.email,
         name: payload.user.name
+      });
+
+      writeAuditLog(request.log, {
+        action: "SIGNIN_SUCCEEDED",
+        actorId: user.id,
+        entityType: "session",
+        entityId: user.id,
+        metadata: {
+          email: user.email,
+          role: user.role
+        }
       });
 
       return reply.status(200).send({
@@ -159,6 +200,12 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
 
       await appendSetCookie(reply, authResponse);
 
+      writeAuditLog(request.log, {
+        action: "SIGNOUT_SUCCEEDED",
+        entityType: "session",
+        entityId: "current-session"
+      });
+
       return reply.status(200).send({
         message: "Successfully signed out."
       });
@@ -183,6 +230,13 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
       if (!context) {
         return;
       }
+
+      writeAuditLog(request.log, {
+        action: "SESSION_FETCHED",
+        actorId: context.user.id,
+        entityType: "session",
+        entityId: context.user.id
+      });
 
       return reply.status(200).send({
         user: {
@@ -211,6 +265,15 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
     },
     handler: async (request, reply) => {
       if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+        writeAuditLog(request.log, {
+          action: "SOCIAL_GOOGLE_UNAVAILABLE",
+          entityType: "auth",
+          entityId: "google",
+          metadata: {
+            reason: "provider-not-configured"
+          }
+        });
+
         return reply.status(503).send({
           error: "ProviderNotConfigured",
           message: "Google social login is not configured."
@@ -229,6 +292,15 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
       });
 
       if (authResponse.status >= 400) {
+        writeAuditLog(request.log, {
+          action: "SOCIAL_GOOGLE_UNAVAILABLE",
+          entityType: "auth",
+          entityId: "google",
+          metadata: {
+            reason: "provider-unavailable"
+          }
+        });
+
         return reply.status(503).send({
           error: "SocialSignInUnavailable",
           message: "Google social login is currently unavailable."
@@ -238,6 +310,12 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
       await appendSetCookie(reply, authResponse);
 
       const payload = (await authResponse.json()) as { url: string };
+
+      writeAuditLog(request.log, {
+        action: "SOCIAL_GOOGLE_STARTED",
+        entityType: "auth",
+        entityId: "google"
+      });
 
       return reply.status(200).send(payload);
     }
