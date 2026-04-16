@@ -19,7 +19,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   ADMIN_EMAILS: z.string().default(""),
-  PERSISTENCE_DRIVER: z.enum(["memory", "prisma"]).optional()
+  PERSISTENCE_DRIVER: z.enum(["memory", "prisma"]).optional(),
+  UPLOAD_MAX_SIZE_MB: z.coerce.number().int().positive().max(20).default(5)
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
