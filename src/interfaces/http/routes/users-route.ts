@@ -70,7 +70,7 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         return;
       }
 
-      const updatedUser = updateUserRole(context.user.id, request.body.role);
+      const updatedUser = await updateUserRole(context.user.id, request.body.role);
 
       if (!updatedUser) {
         return reply.status(404).send({

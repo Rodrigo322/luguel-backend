@@ -14,14 +14,14 @@ function calculateRentalDays(startDate: Date, endDate: Date): number {
   return Math.max(1, difference);
 }
 
-export function requestRental(input: RequestRentalInput) {
-  const tenant = getUserById(input.tenantId);
+export async function requestRental(input: RequestRentalInput) {
+  const tenant = await getUserById(input.tenantId);
 
   if (!tenant) {
     throw new DomainError("Tenant not found.", 404, "TenantNotFound");
   }
 
-  const listing = getListingById(input.listingId);
+  const listing = await getListingById(input.listingId);
 
   if (!listing) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");

@@ -59,7 +59,7 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
       }
 
       try {
-        const rental = requestRental({
+        const rental = await requestRental({
           tenantId: context.user.id,
           listingId: request.body.listingId,
           startDate: new Date(request.body.startDate),
@@ -105,7 +105,7 @@ export async function rentalsRoute(app: FastifyInstance, auth: AppAuth): Promise
       }
 
       try {
-        const updated = updateRentalStatusFlow({
+        const updated = await updateRentalStatusFlow({
           requesterId: context.user.id,
           requesterRole: context.user.role,
           rentalId: request.params.rentalId,

@@ -33,7 +33,7 @@ export async function requireAuth(
     return null;
   }
 
-  const user = upsertUserFromAuth({
+  const user = await upsertUserFromAuth({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name

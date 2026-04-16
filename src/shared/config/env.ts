@@ -18,7 +18,8 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3333"),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
-  ADMIN_EMAILS: z.string().default("")
+  ADMIN_EMAILS: z.string().default(""),
+  PERSISTENCE_DRIVER: z.enum(["memory", "prisma"]).optional()
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

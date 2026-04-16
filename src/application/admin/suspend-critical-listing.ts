@@ -13,8 +13,8 @@ interface SuspendCriticalListingInput {
   reason: string;
 }
 
-export function suspendCriticalListing(input: SuspendCriticalListingInput) {
-  const listing = getListingById(input.listingId);
+export async function suspendCriticalListing(input: SuspendCriticalListingInput) {
+  const listing = await getListingById(input.listingId);
 
   if (!listing) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
@@ -24,21 +24,21 @@ export function suspendCriticalListing(input: SuspendCriticalListingInput) {
     throw new DomainError("Admin intervention is allowed only for critical listings.", 400, "NotCriticalCase");
   }
 
-  const suspended = updateListingStatus(listing.id, "SUSPENDED");
+  const suspended = await updateListingStatus(listing.id, "SUSPENDED");
 
   if (!suspended) {
     throw new DomainError("Unable to suspend listing.", 500, "SuspendFailed");
   }
 
-  const relatedOpenReports = listReportRecords().filter(
+  const relatedOpenReports = (await listReportRecords()).filter(
     (report) => report.listingId === listing.id && report.status === "OPEN"
   );
 
   for (const report of relatedOpenReports) {
-    updateReportStatus(report.id, "TRIAGED");
+    await updateReportStatus(report.id, "TRIAGED");
   }
 
-  createAdminAuditLogRecord({
+  await createAdminAuditLogRecord({
     adminId: input.adminId,
     action: "LISTING_SUSPENDED",
     entityType: "listing",

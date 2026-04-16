@@ -56,7 +56,7 @@ export async function reportsRoute(app: FastifyInstance, auth: AppAuth): Promise
       }
 
       try {
-        const report = createReport({
+        const report = await createReport({
           reporterId: context.user.id,
           listingId: request.body.listingId,
           rentalId: request.body.rentalId,

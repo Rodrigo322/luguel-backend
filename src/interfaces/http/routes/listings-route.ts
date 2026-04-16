@@ -57,7 +57,7 @@ export async function listingsRoute(app: FastifyInstance, auth: AppAuth): Promis
       }
 
       try {
-        const result = createListing({
+        const result = await createListing({
           ownerId: context.user.id,
           title: request.body.title,
           description: request.body.description,
@@ -92,7 +92,7 @@ export async function listingsRoute(app: FastifyInstance, auth: AppAuth): Promis
       }
     },
     handler: async (_request, reply) => {
-      const listings = listListingRecords().map((listing) => ({
+      const listings = (await listListingRecords()).map((listing) => ({
         ...listing,
         createdAt: listing.createdAt.toISOString(),
         updatedAt: listing.updatedAt.toISOString()
@@ -118,7 +118,7 @@ export async function listingsRoute(app: FastifyInstance, auth: AppAuth): Promis
       }
     },
     handler: async (request, reply) => {
-      const listing = getListingById(request.params.listingId);
+      const listing = await getListingById(request.params.listingId);
 
       if (!listing) {
         return reply.status(404).send({

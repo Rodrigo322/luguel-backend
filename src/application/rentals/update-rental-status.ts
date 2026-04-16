@@ -8,14 +8,14 @@ interface UpdateRentalStatusInput {
   status: "APPROVED" | "ACTIVE" | "COMPLETED" | "CANCELED";
 }
 
-export function updateRentalStatusFlow(input: UpdateRentalStatusInput) {
-  const rental = getRentalById(input.rentalId);
+export async function updateRentalStatusFlow(input: UpdateRentalStatusInput) {
+  const rental = await getRentalById(input.rentalId);
 
   if (!rental) {
     throw new DomainError("Rental not found.", 404, "RentalNotFound");
   }
 
-  const listing = getListingById(rental.listingId);
+  const listing = await getListingById(rental.listingId);
 
   if (!listing) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
@@ -28,7 +28,7 @@ export function updateRentalStatusFlow(input: UpdateRentalStatusInput) {
     throw new DomainError("Only owner or admin can update rental status.", 403, "RentalForbidden");
   }
 
-  const updatedRental = updateRentalStatus(rental.id, input.status);
+  const updatedRental = await updateRentalStatus(rental.id, input.status);
 
   if (!updatedRental) {
     throw new DomainError("Rental not found after update operation.", 404, "RentalNotFound");

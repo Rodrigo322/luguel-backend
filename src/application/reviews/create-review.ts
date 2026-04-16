@@ -14,12 +14,12 @@ interface CreateReviewInput {
   comment?: string;
 }
 
-export function createReview(input: CreateReviewInput) {
+export async function createReview(input: CreateReviewInput) {
   if (input.rating < 1 || input.rating > 5) {
     throw new DomainError("Rating must be between 1 and 5.", 400, "InvalidRating");
   }
 
-  const rental = getRentalById(input.rentalId);
+  const rental = await getRentalById(input.rentalId);
 
   if (!rental) {
     throw new DomainError("Rental not found.", 404, "RentalNotFound");
@@ -29,7 +29,7 @@ export function createReview(input: CreateReviewInput) {
     throw new DomainError("Review can only be created for completed rentals.", 400, "RentalNotCompleted");
   }
 
-  const listing = getListingById(input.listingId);
+  const listing = await getListingById(input.listingId);
 
   if (!listing) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");
@@ -46,7 +46,7 @@ export function createReview(input: CreateReviewInput) {
     throw new DomainError("Reviewer is not part of the rental.", 403, "ReviewForbidden");
   }
 
-  const existing = findReviewByRentalAndReviewer(rental.id, input.reviewerId);
+  const existing = await findReviewByRentalAndReviewer(rental.id, input.reviewerId);
 
   if (existing) {
     throw new DomainError("Review already exists for this rental and reviewer.", 409, "ReviewAlreadyExists");

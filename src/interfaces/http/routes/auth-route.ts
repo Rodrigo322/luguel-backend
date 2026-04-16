@@ -73,7 +73,7 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
 
       await appendSetCookie(reply, authResponse);
 
-      const user = upsertUserFromAuth({
+      const user = await upsertUserFromAuth({
         id: payload.user.id,
         email: payload.user.email,
         name: payload.user.name
@@ -123,7 +123,7 @@ export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<vo
 
       await appendSetCookie(reply, authResponse);
 
-      const user = upsertUserFromAuth({
+      const user = await upsertUserFromAuth({
         id: payload.user.id,
         email: payload.user.email,
         name: payload.user.name

@@ -9,7 +9,7 @@ import { registerSwagger } from "./plugins/register-swagger";
 import { registerRoutes } from "./routes";
 
 export async function buildApp(): Promise<FastifyInstance> {
-  resetInMemoryStore();
+  await resetInMemoryStore();
 
   const app = Fastify({
     logger: env.NODE_ENV !== "test"

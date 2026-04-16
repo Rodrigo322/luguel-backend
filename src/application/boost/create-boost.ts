@@ -9,14 +9,14 @@ interface CreateBoostInput {
   paymentConfirmed: boolean;
 }
 
-export function createBoost(input: CreateBoostInput) {
-  const requester = getUserById(input.requesterId);
+export async function createBoost(input: CreateBoostInput) {
+  const requester = await getUserById(input.requesterId);
 
   if (!requester) {
     throw new DomainError("Requester not found.", 404, "RequesterNotFound");
   }
 
-  const listing = getListingById(input.listingId);
+  const listing = await getListingById(input.listingId);
 
   if (!listing) {
     throw new DomainError("Listing not found.", 404, "ListingNotFound");

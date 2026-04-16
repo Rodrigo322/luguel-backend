@@ -14,8 +14,8 @@ interface CreateListingInput {
   dailyPrice: number;
 }
 
-export function createListing(input: CreateListingInput) {
-  const owner = getUserById(input.ownerId);
+export async function createListing(input: CreateListingInput) {
+  const owner = await getUserById(input.ownerId);
 
   if (!owner) {
     throw new DomainError("Listing owner was not found.", 404, "OwnerNotFound");
@@ -32,7 +32,7 @@ export function createListing(input: CreateListingInput) {
     ownerReputationScore: owner.reputationScore
   });
 
-  const listing = createListingRecord({
+  const listing = await createListingRecord({
     ownerId: owner.id,
     title: input.title,
     description: input.description,
@@ -41,7 +41,7 @@ export function createListing(input: CreateListingInput) {
     status: risk.level === "CRITICAL" ? "FLAGGED" : "ACTIVE"
   });
 
-  createRiskAssessmentRecord({
+  await createRiskAssessmentRecord({
     userId: owner.id,
     listingId: listing.id,
     score: risk.score,
@@ -50,7 +50,7 @@ export function createListing(input: CreateListingInput) {
   });
 
   if (risk.level === "CRITICAL") {
-    createReportRecord({
+    await createReportRecord({
       reporterId: owner.id,
       listingId: listing.id,
       reason: "Automatic risk screening detected critical listing risk.",

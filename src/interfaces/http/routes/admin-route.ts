@@ -61,7 +61,7 @@ export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         return;
       }
 
-      const reports = listCriticalReports().map((report) => ({
+      const reports = (await listCriticalReports()).map((report) => ({
         ...report,
         createdAt: report.createdAt.toISOString(),
         updatedAt: report.updatedAt.toISOString()
@@ -103,7 +103,7 @@ export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<v
       }
 
       try {
-        const suspendedListing = suspendCriticalListing({
+        const suspendedListing = await suspendCriticalListing({
           adminId: context.user.id,
           listingId: request.params.listingId,
           reason: request.body.reason

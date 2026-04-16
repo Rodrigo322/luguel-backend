@@ -50,7 +50,7 @@ export async function reviewsRoute(app: FastifyInstance, auth: AppAuth): Promise
       }
 
       try {
-        const review = createReview({
+        const review = await createReview({
           reviewerId: context.user.id,
           listingId: request.body.listingId,
           rentalId: request.body.rentalId,

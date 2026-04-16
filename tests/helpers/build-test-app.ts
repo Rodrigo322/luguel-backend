@@ -4,6 +4,7 @@ export async function buildTestApp() {
   process.env.BETTER_AUTH_SECRET =
     process.env.BETTER_AUTH_SECRET ?? "change-this-secret-in-production-with-at-least-32-chars";
   process.env.BETTER_AUTH_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3333";
+  process.env.PERSISTENCE_DRIVER = "memory";
 
   const { buildApp } = await import("../../src/interfaces/http/app");
   return buildApp();

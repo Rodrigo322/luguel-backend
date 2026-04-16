@@ -1,5 +1,5 @@
 import { listCriticalOpenReports } from "../../infra/persistence/in-memory-store";
 
-export function listCriticalReports() {
+export async function listCriticalReports() {
   return listCriticalOpenReports();
 }

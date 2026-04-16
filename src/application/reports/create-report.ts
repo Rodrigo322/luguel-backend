@@ -28,8 +28,8 @@ function classifyReportRisk(reason: string, details?: string): RiskLevel {
   return "LOW";
 }
 
-export function createReport(input: CreateReportInput) {
-  const reporter = getUserById(input.reporterId);
+export async function createReport(input: CreateReportInput) {
+  const reporter = await getUserById(input.reporterId);
 
   if (!reporter) {
     throw new DomainError("Reporter not found.", 404, "ReporterNotFound");
@@ -39,11 +39,11 @@ export function createReport(input: CreateReportInput) {
     throw new DomainError("Report must target listing or rental.", 400, "InvalidReportTarget");
   }
 
-  if (input.listingId && !getListingById(input.listingId)) {
+  if (input.listingId && !(await getListingById(input.listingId))) {
     throw new DomainError("Listing target not found.", 404, "ListingNotFound");
   }
 
-  if (input.rentalId && !getRentalById(input.rentalId)) {
+  if (input.rentalId && !(await getRentalById(input.rentalId))) {
     throw new DomainError("Rental target not found.", 404, "RentalNotFound");
   }
 

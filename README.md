@@ -97,6 +97,11 @@ npm run dev
 - `npm run prisma:generate`
 - `npm run prisma:migrate`
 
+## Persistência
+
+- `PERSISTENCE_DRIVER=prisma` (padrão fora de teste): usa PostgreSQL via Prisma.
+- `PERSISTENCE_DRIVER=memory` (padrão em testes): usa store em memória para execução isolada.
+
 ## Estado atual do fluxo obrigatório
 
 Etapas concluídas nesta entrega:
@@ -113,4 +118,4 @@ Etapas concluídas nesta entrega:
 10. Admin
 11. Impulsionamento
 
-Observação: para acelerar a etapa inicial e permitir testes E2E isolados sem dependências externas, os módulos de domínio estão persistindo em memória neste momento, mantendo Prisma/PostgreSQL já estruturados e prontos para migração das operações para banco físico na próxima iteração.
+Observação: os módulos já suportam persistência com Prisma/PostgreSQL e também modo em memória para testes isolados.

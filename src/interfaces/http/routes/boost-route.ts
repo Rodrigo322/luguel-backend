@@ -54,7 +54,7 @@ export async function boostRoute(app: FastifyInstance, auth: AppAuth): Promise<v
       }
 
       try {
-        const boost = createBoost({
+        const boost = await createBoost({
           requesterId: context.user.id,
           listingId: request.body.listingId,
           amount: request.body.amount,
