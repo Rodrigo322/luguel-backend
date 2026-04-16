@@ -7,6 +7,7 @@ Este diretorio concentra a documentacao completa do backend.
 - [Visao Geral](./PROJECT_STATUS.md)
 - [Arquitetura DDD](./ARCHITECTURE.md)
 - [Setup e Execucao](./SETUP_AND_RUN.md)
+- [Deploy na Vercel](./VERCEL_DEPLOY.md)
 - [Referencia de API](./API_REFERENCE.md)
 - [Seguranca](./SECURITY.md)
 - [Testes](./TESTS.md)

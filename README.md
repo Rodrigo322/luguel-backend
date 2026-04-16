@@ -8,6 +8,7 @@ Backend da plataforma universal de aluguel com DDD, Fastify, Prisma, Better Auth
 - [Visao Geral e Status](./docs/PROJECT_STATUS.md)
 - [Arquitetura DDD](./docs/ARCHITECTURE.md)
 - [Setup e Execucao](./docs/SETUP_AND_RUN.md)
+- [Deploy na Vercel](./docs/VERCEL_DEPLOY.md)
 - [Referencia de API](./docs/API_REFERENCE.md)
 - [Seguranca](./docs/SECURITY.md)
 - [Testes](./docs/TESTS.md)
