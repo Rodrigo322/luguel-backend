@@ -1,4 +1,3 @@
-import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -9,6 +8,7 @@ import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { getUserById, updateUserRole } from "../../../infra/persistence/in-memory-store";
 import { requireAuth, requireRoles } from "../auth/guards";
 import type { AppAuth } from "../auth/create-auth";
+import { loadBetterAuthNode } from "../auth/load-better-auth-node";
 import { handleDomainError } from "../errors/handle-domain-error";
 
 const userProfileSchema = z.object({
@@ -42,6 +42,7 @@ const updateProfileBodySchema = z.object({
 });
 
 export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
+  const { fromNodeHeaders } = await loadBetterAuthNode();
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
   typedApp.route({

@@ -1,9 +1,9 @@
-import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { upsertUserFromAuth, type StoredUser } from "../../../infra/persistence/in-memory-store";
 import type { UserRole } from "../../../shared/types/role";
 import type { AppAuth } from "./create-auth";
+import { loadBetterAuthNode } from "./load-better-auth-node";
 
 export interface AuthContext {
   session: {
@@ -22,6 +22,8 @@ export async function requireAuth(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<AuthContext | null> {
+  const { fromNodeHeaders } = await loadBetterAuthNode();
+
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(request.headers)
   });

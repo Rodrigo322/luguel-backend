@@ -25,6 +25,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const app = await getApp();
     app.server.emit("request", req, res);
   } catch (error) {
+    console.error("BootFailure", error);
     res.statusCode = 500;
     res.setHeader("content-type", "application/json");
     res.end(

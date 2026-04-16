@@ -1,4 +1,3 @@
-import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -6,6 +5,7 @@ import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { upsertUserFromAuth } from "../../../infra/persistence/in-memory-store";
 import { env } from "../../../shared/config/env";
 import { requireAuth } from "../auth/guards";
+import { loadBetterAuthNode } from "../auth/load-better-auth-node";
 import type { AppAuth } from "../auth/create-auth";
 
 const authSignupBodySchema = z.object({
@@ -48,6 +48,7 @@ async function appendSetCookie(reply: FastifyReply, response: Response): Promise
 }
 
 export async function authRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
+  const { fromNodeHeaders } = await loadBetterAuthNode();
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
   typedApp.route({

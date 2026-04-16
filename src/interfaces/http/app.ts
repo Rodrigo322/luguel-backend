@@ -1,9 +1,9 @@
-import { toNodeHandler } from "better-auth/node";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { resetInMemoryStore } from "../../infra/persistence/in-memory-store";
 import { env } from "../../shared/config/env";
 import { createAuth } from "./auth/create-auth";
+import { loadBetterAuthNode } from "./auth/load-better-auth-node";
 import { registerSecurity } from "./plugins/register-security";
 import { registerSwagger } from "./plugins/register-swagger";
 import { registerRoutes } from "./routes";
@@ -21,7 +21,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerSecurity(app);
   await registerSwagger(app);
 
-  const auth = createAuth();
+  const auth = await createAuth();
+  const { toNodeHandler } = await loadBetterAuthNode();
   const authNodeHandler = toNodeHandler(auth);
 
   app.all("/api/auth/*", async (request, reply) => {

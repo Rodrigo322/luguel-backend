@@ -1,6 +1,3 @@
-import { betterAuth } from "better-auth";
-import { memoryAdapter } from "better-auth/adapters/memory";
-import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "../../../infra/database/prisma-client";
 import { env } from "../../../shared/config/env";
 
@@ -22,7 +19,37 @@ export function clearPasswordResetLinksForTesting(): void {
   passwordResetLinks.clear();
 }
 
-export function createAuth() {
+type BetterAuthFactory = (options: Record<string, unknown>) => unknown;
+type MemoryAdapterFactory = (database: Record<string, unknown[]>) => unknown;
+type PrismaAdapterFactory = (client: unknown, options: { provider: string }) => unknown;
+
+interface BetterAuthDependencies {
+  betterAuth: BetterAuthFactory;
+  memoryAdapter: MemoryAdapterFactory;
+  prismaAdapter: PrismaAdapterFactory;
+}
+
+let betterAuthDependenciesPromise: Promise<BetterAuthDependencies> | null = null;
+
+async function loadBetterAuthDependencies(): Promise<BetterAuthDependencies> {
+  if (!betterAuthDependenciesPromise) {
+    betterAuthDependenciesPromise = Promise.all([
+      import("better-auth") as Promise<{ betterAuth: BetterAuthFactory }>,
+      import("better-auth/adapters/memory") as Promise<{ memoryAdapter: MemoryAdapterFactory }>,
+      import("better-auth/adapters/prisma") as Promise<{ prismaAdapter: PrismaAdapterFactory }>
+    ]).then(([betterAuthModule, memoryAdapterModule, prismaAdapterModule]) => ({
+      betterAuth: betterAuthModule.betterAuth,
+      memoryAdapter: memoryAdapterModule.memoryAdapter,
+      prismaAdapter: prismaAdapterModule.prismaAdapter
+    }));
+  }
+
+  return betterAuthDependenciesPromise;
+}
+
+export async function createAuth() {
+  const { betterAuth, memoryAdapter, prismaAdapter } = await loadBetterAuthDependencies();
+
   const database: Record<string, unknown[]> = {
     user: [],
     session: [],
@@ -57,12 +84,12 @@ export function createAuth() {
       enabled: true,
       minPasswordLength: 8,
       maxPasswordLength: 128,
-      sendResetPassword: async ({ user, url }) => {
+      sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
         passwordResetLinks.set(normalizeEmail(user.email), url);
       }
     },
     socialProviders
-  });
+  }) as any;
 }
 
-export type AppAuth = ReturnType<typeof createAuth>;
+export type AppAuth = any;
