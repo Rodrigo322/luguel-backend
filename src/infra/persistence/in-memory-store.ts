@@ -13,7 +13,7 @@ import type {
   StoredUser
 } from "./store-types";
 
-const persistenceDriver = env.PERSISTENCE_DRIVER ?? (env.NODE_ENV === "test" ? "memory" : "prisma");
+const persistenceDriver = env.NODE_ENV === "test" ? "memory" : (env.PERSISTENCE_DRIVER ?? "prisma");
 const store: PersistenceStore = persistenceDriver === "prisma" ? prismaStore : memoryStore;
 
 export type {

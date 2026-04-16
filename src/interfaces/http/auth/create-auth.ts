@@ -22,7 +22,7 @@ export function createAuth() {
         }
       : undefined;
 
-  const persistenceDriver = env.PERSISTENCE_DRIVER ?? (env.NODE_ENV === "test" ? "memory" : "prisma");
+  const persistenceDriver = env.NODE_ENV === "test" ? "memory" : (env.PERSISTENCE_DRIVER ?? "prisma");
   const authDatabase =
     persistenceDriver === "prisma"
       ? prismaAdapter(prisma, {
