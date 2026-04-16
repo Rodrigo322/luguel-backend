@@ -75,19 +75,33 @@ npm run dev
 - `POST /api/v1/auth/signin`
 - `POST /api/v1/auth/signout`
 - `GET /api/v1/auth/session`
+- `POST /api/v1/auth/session/refresh`
+- `POST /api/v1/auth/password/forgot`
+- `POST /api/v1/auth/password/reset`
 - `GET /api/v1/auth/social/google`
 - `GET /api/v1/users/me`
+- `PATCH /api/v1/users/me`
 - `PATCH /api/v1/users/me/role`
+- `DELETE /api/v1/users/me`
+- `GET /api/v1/users` (admin)
+- `GET /api/v1/users/:userId` (admin)
 - `POST /api/v1/listings`
 - `GET /api/v1/listings`
 - `GET /api/v1/listings/:listingId`
+- `PATCH /api/v1/listings/:listingId`
+- `DELETE /api/v1/listings/:listingId`
 - `POST /api/v1/rentals`
+- `GET /api/v1/rentals`
+- `GET /api/v1/rentals/:rentalId`
 - `PATCH /api/v1/rentals/:rentalId/status`
 - `POST /api/v1/reviews`
 - `POST /api/v1/reports`
 - `POST /api/v1/reports/attachments` (upload seguro)
 - `GET /api/v1/admin/reports/critical`
+- `PATCH /api/v1/admin/reports/:reportId/status`
 - `POST /api/v1/admin/listings/:listingId/suspend`
+- `POST /api/v1/admin/listings/:listingId/archive`
+- `POST /api/v1/admin/users/:userId/ban`
 - `POST /api/v1/boosts`
 
 ## Seguranca implementada
@@ -126,3 +140,6 @@ npm run dev
 - `npm run prisma:migrate`
 - `npm run prisma:deploy`
 
+## Testes
+
+- Suite completa com `80` testes automatizados (unitarios, integracao e E2E).

@@ -14,7 +14,7 @@ describe("Swagger docs", () => {
     await app.close();
   });
 
-  it("should expose OpenAPI JSON with upload and domain routes", async () => {
+  it("should expose OpenAPI JSON with domain and moderation routes", async () => {
     const response = await request(app.server).get("/docs/json");
 
     expect(response.statusCode).toBe(200);
@@ -22,5 +22,10 @@ describe("Swagger docs", () => {
     expect(response.body.paths["/api/v1/reports"]).toBeDefined();
     expect(response.body.paths["/api/v1/reports/attachments"]).toBeDefined();
     expect(response.body.paths["/api/v1/boosts"]).toBeDefined();
+    expect(response.body.paths["/api/v1/auth/password/forgot"]).toBeDefined();
+    expect(response.body.paths["/api/v1/auth/password/reset"]).toBeDefined();
+    expect(response.body.paths["/api/v1/users"]).toBeDefined();
+    expect(response.body.paths["/api/v1/listings/{listingId}"]).toBeDefined();
+    expect(response.body.paths["/api/v1/admin/users/{userId}/ban"]).toBeDefined();
   });
 });

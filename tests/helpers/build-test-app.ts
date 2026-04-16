@@ -6,6 +6,9 @@ export async function buildTestApp() {
   process.env.BETTER_AUTH_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3333";
   process.env.PERSISTENCE_DRIVER = "memory";
 
+  const { clearPasswordResetLinksForTesting } = await import("../../src/interfaces/http/auth/create-auth");
+  clearPasswordResetLinksForTesting();
+
   const { buildApp } = await import("../../src/interfaces/http/app");
   return buildApp();
 }

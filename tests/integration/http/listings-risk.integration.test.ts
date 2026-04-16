@@ -14,7 +14,7 @@ describe("Listings risk validation", () => {
     await app.close();
   });
 
-  it("should flag listing when risk is critical", async () => {
+  it("should set listing pending validation when risk is critical", async () => {
     const signUp = await request(app.server).post("/api/v1/auth/signup").send({
       name: "Locador",
       email: "locador-risk@example.com",
@@ -35,7 +35,7 @@ describe("Listings risk validation", () => {
     });
 
     expect(listingResponse.statusCode).toBe(201);
-    expect(listingResponse.body.listing.status).toBe("FLAGGED");
+    expect(listingResponse.body.listing.status).toBe("PENDING_VALIDATION");
     expect(listingResponse.body.risk.level).toBe("CRITICAL");
   });
 });

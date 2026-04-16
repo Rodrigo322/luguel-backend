@@ -47,6 +47,22 @@ describe("Reviews and boost flow (E2E)", () => {
     });
     const rentalId = rentalCreate.body.id as string;
 
+    const rentalApprove = await request(app.server)
+      .patch(`/api/v1/rentals/${rentalId}/status`)
+      .set("Cookie", ownerCookie)
+      .send({ status: "APPROVED" });
+
+    expect(rentalApprove.statusCode).toBe(200);
+    expect(rentalApprove.body.status).toBe("APPROVED");
+
+    const rentalActivate = await request(app.server)
+      .patch(`/api/v1/rentals/${rentalId}/status`)
+      .set("Cookie", ownerCookie)
+      .send({ status: "ACTIVE" });
+
+    expect(rentalActivate.statusCode).toBe(200);
+    expect(rentalActivate.body.status).toBe("ACTIVE");
+
     const rentalComplete = await request(app.server)
       .patch(`/api/v1/rentals/${rentalId}/status`)
       .set("Cookie", ownerCookie)

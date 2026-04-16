@@ -43,7 +43,7 @@ describe("createListing", () => {
     });
   });
 
-  it("should automatically flag and report critical risk listing", async () => {
+  it("should set listing as pending validation and report critical risk listing", async () => {
     const owner = await upsertUserFromAuth({
       id: "owner-2",
       email: "owner2@example.com",
@@ -59,7 +59,7 @@ describe("createListing", () => {
 
     const reports = await listReportRecords();
 
-    expect(result.listing.status).toBe("FLAGGED");
+    expect(result.listing.status).toBe("PENDING_VALIDATION");
     expect(result.risk.level).toBe("CRITICAL");
     expect(reports).toHaveLength(1);
     expect(reports[0]?.listingId).toBe(result.listing.id);
