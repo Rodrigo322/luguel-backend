@@ -10,6 +10,8 @@ export interface StoredUser {
   email: string;
   name: string;
   role: UserRole;
+  isBanned: boolean;
+  bannedAt?: Date;
   reputationScore: number;
   createdAt: Date;
   updatedAt: Date;
@@ -98,9 +100,13 @@ export interface PersistenceStore {
   reset(): Promise<void>;
 
   upsertUserFromAuth(input: { id: string; email: string; name: string }): Promise<StoredUser>;
+  listUsers(): Promise<StoredUser[]>;
   getUserById(userId: string): Promise<StoredUser | null>;
   getUserByEmail(email: string): Promise<StoredUser | null>;
+  updateUserProfile(userId: string, input: { name: string }): Promise<StoredUser | null>;
   updateUserRole(userId: string, role: Extract<UserRole, "LOCADOR" | "LOCATARIO">): Promise<StoredUser | null>;
+  banUser(userId: string): Promise<StoredUser | null>;
+  deleteUserById(userId: string): Promise<boolean>;
   updateUserReputation(userId: string, rating: number): Promise<StoredUser | null>;
 
   createListingRecord(input: {
@@ -112,7 +118,18 @@ export interface PersistenceStore {
     riskLevel: RiskLevel;
   }): Promise<StoredListing>;
   listListingRecords(): Promise<StoredListing[]>;
+  listListingsByOwner(ownerId: string): Promise<StoredListing[]>;
   getListingById(listingId: string): Promise<StoredListing | null>;
+  updateListingRecord(
+    listingId: string,
+    input: Partial<{
+      title: string;
+      description: string;
+      dailyPrice: number;
+      status: ListingStatus;
+      riskLevel: RiskLevel;
+    }>
+  ): Promise<StoredListing | null>;
   updateListingStatus(listingId: string, status: ListingStatus): Promise<StoredListing | null>;
 
   createRiskAssessmentRecord(input: {
@@ -132,6 +149,8 @@ export interface PersistenceStore {
     status: RentalStatus;
   }): Promise<StoredRental>;
   getRentalById(rentalId: string): Promise<StoredRental | null>;
+  listRentalRecords(): Promise<StoredRental[]>;
+  listRentalsByUser(userId: string): Promise<StoredRental[]>;
   updateRentalStatus(rentalId: string, status: RentalStatus): Promise<StoredRental | null>;
 
   findReviewByRentalAndReviewer(rentalId: string, reviewerId: string): Promise<StoredReview | null>;

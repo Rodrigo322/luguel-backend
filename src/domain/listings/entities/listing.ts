@@ -1,4 +1,4 @@
-export type ListingStatus = "ACTIVE" | "FLAGGED" | "SUSPENDED" | "ARCHIVED";
+export type ListingStatus = "ACTIVE" | "PENDING_VALIDATION" | "FLAGGED" | "SUSPENDED" | "ARCHIVED";
 
 export interface Listing {
   id: string;

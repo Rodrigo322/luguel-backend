@@ -36,6 +36,10 @@ export async function upsertUserFromAuth(input: { id: string; email: string; nam
   return store.upsertUserFromAuth(input);
 }
 
+export async function listUsers(): Promise<StoredUser[]> {
+  return store.listUsers();
+}
+
 export async function getUserById(userId: string): Promise<StoredUser | null> {
   return store.getUserById(userId);
 }
@@ -44,11 +48,23 @@ export async function getUserByEmail(email: string): Promise<StoredUser | null> 
   return store.getUserByEmail(email);
 }
 
+export async function updateUserProfile(userId: string, input: { name: string }): Promise<StoredUser | null> {
+  return store.updateUserProfile(userId, input);
+}
+
 export async function updateUserRole(
   userId: string,
   role: Extract<StoredUser["role"], "LOCADOR" | "LOCATARIO">
 ): Promise<StoredUser | null> {
   return store.updateUserRole(userId, role);
+}
+
+export async function banUser(userId: string): Promise<StoredUser | null> {
+  return store.banUser(userId);
+}
+
+export async function deleteUserById(userId: string): Promise<boolean> {
+  return store.deleteUserById(userId);
 }
 
 export async function updateUserReputation(userId: string, rating: number): Promise<StoredUser | null> {
@@ -70,8 +86,25 @@ export async function listListingRecords(): Promise<StoredListing[]> {
   return store.listListingRecords();
 }
 
+export async function listListingsByOwner(ownerId: string): Promise<StoredListing[]> {
+  return store.listListingsByOwner(ownerId);
+}
+
 export async function getListingById(listingId: string): Promise<StoredListing | null> {
   return store.getListingById(listingId);
+}
+
+export async function updateListingRecord(
+  listingId: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    dailyPrice: number;
+    status: StoredListing["status"];
+    riskLevel: StoredListing["riskLevel"];
+  }>
+): Promise<StoredListing | null> {
+  return store.updateListingRecord(listingId, input);
 }
 
 export async function updateListingStatus(
@@ -104,6 +137,14 @@ export async function createRentalRecord(input: {
 
 export async function getRentalById(rentalId: string): Promise<StoredRental | null> {
   return store.getRentalById(rentalId);
+}
+
+export async function listRentalRecords(): Promise<StoredRental[]> {
+  return store.listRentalRecords();
+}
+
+export async function listRentalsByUser(userId: string): Promise<StoredRental[]> {
+  return store.listRentalsByUser(userId);
 }
 
 export async function updateRentalStatus(

@@ -36,6 +36,8 @@ function toStoredUser(user: {
   email: string;
   name: string;
   role: "LOCADOR" | "LOCATARIO" | "ADMIN";
+  isBanned: boolean;
+  bannedAt: Date | null;
   reputationScore: number;
   createdAt: Date;
   updatedAt: Date;
@@ -45,6 +47,8 @@ function toStoredUser(user: {
     email: user.email,
     name: user.name,
     role: user.role,
+    isBanned: user.isBanned,
+    bannedAt: user.bannedAt ?? undefined,
     reputationScore: user.reputationScore,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
@@ -144,11 +148,20 @@ async function upsertUserFromAuth(input: { id: string; email: string; name: stri
       id: input.id,
       email: normalizedEmail,
       name: input.name,
-      role: role ?? "LOCATARIO"
+      role: role ?? "LOCATARIO",
+      isBanned: false
     }
   });
 
   return toStoredUser(user);
+}
+
+async function listUsers(): Promise<StoredUser[]> {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+
+  return users.map(toStoredUser);
 }
 
 async function getUserById(userId: string): Promise<StoredUser | null> {
@@ -163,6 +176,17 @@ async function getUserByEmail(email: string): Promise<StoredUser | null> {
   return user ? toStoredUser(user) : null;
 }
 
+async function updateUserProfile(userId: string, input: { name: string }): Promise<StoredUser | null> {
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: input.name
+    }
+  }).catch(() => null);
+
+  return updated ? toStoredUser(updated) : null;
+}
+
 async function updateUserRole(
   userId: string,
   role: Extract<StoredUser["role"], "LOCADOR" | "LOCATARIO">
@@ -173,6 +197,26 @@ async function updateUserRole(
   }).catch(() => null);
 
   return updated ? toStoredUser(updated) : null;
+}
+
+async function banUser(userId: string): Promise<StoredUser | null> {
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      isBanned: true,
+      bannedAt: new Date()
+    }
+  }).catch(() => null);
+
+  return updated ? toStoredUser(updated) : null;
+}
+
+async function deleteUserById(userId: string): Promise<boolean> {
+  const deleted = await prisma.user.delete({
+    where: { id: userId }
+  }).catch(() => null);
+
+  return Boolean(deleted);
 }
 
 async function updateUserReputation(userId: string, rating: number): Promise<StoredUser | null> {
@@ -223,8 +267,35 @@ async function listListingRecords(): Promise<StoredListing[]> {
   return listings.map(toStoredListing);
 }
 
+async function listListingsByOwner(ownerId: string): Promise<StoredListing[]> {
+  const listings = await prisma.listing.findMany({
+    where: { ownerId },
+    orderBy: { createdAt: "desc" }
+  });
+
+  return listings.map(toStoredListing);
+}
+
 async function getListingById(listingId: string): Promise<StoredListing | null> {
   const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+  return listing ? toStoredListing(listing) : null;
+}
+
+async function updateListingRecord(
+  listingId: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    dailyPrice: number;
+    status: StoredListing["status"];
+    riskLevel: StoredListing["riskLevel"];
+  }>
+): Promise<StoredListing | null> {
+  const listing = await prisma.listing.update({
+    where: { id: listingId },
+    data: input
+  }).catch(() => null);
+
   return listing ? toStoredListing(listing) : null;
 }
 
@@ -293,6 +364,32 @@ async function createRentalRecord(input: {
 async function getRentalById(rentalId: string): Promise<StoredRental | null> {
   const rental = await prisma.rental.findUnique({ where: { id: rentalId } });
   return rental ? toStoredRental(rental) : null;
+}
+
+async function listRentalRecords(): Promise<StoredRental[]> {
+  const rentals = await prisma.rental.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+
+  return rentals.map(toStoredRental);
+}
+
+async function listRentalsByUser(userId: string): Promise<StoredRental[]> {
+  const rentals = await prisma.rental.findMany({
+    where: {
+      OR: [
+        { tenantId: userId },
+        {
+          listing: {
+            ownerId: userId
+          }
+        }
+      ]
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  return rentals.map(toStoredRental);
 }
 
 async function updateRentalStatus(
@@ -505,17 +602,25 @@ async function createBoostRecord(input: {
 export const prismaStore: PersistenceStore = {
   reset,
   upsertUserFromAuth,
+  listUsers,
   getUserById,
   getUserByEmail,
+  updateUserProfile,
   updateUserRole,
+  banUser,
+  deleteUserById,
   updateUserReputation,
   createListingRecord,
   listListingRecords,
+  listListingsByOwner,
   getListingById,
+  updateListingRecord,
   updateListingStatus,
   createRiskAssessmentRecord,
   createRentalRecord,
   getRentalById,
+  listRentalRecords,
+  listRentalsByUser,
   updateRentalStatus,
   findReviewByRentalAndReviewer,
   createReviewRecord,

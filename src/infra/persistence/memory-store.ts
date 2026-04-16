@@ -68,6 +68,8 @@ async function upsertUserFromAuth(input: { id: string; email: string; name: stri
     email,
     name: input.name,
     role: adminEmails.has(email) ? "ADMIN" : "LOCATARIO",
+    isBanned: false,
+    bannedAt: undefined,
     reputationScore: 0,
     createdAt: now,
     updatedAt: now
@@ -83,8 +85,31 @@ async function getUserById(userId: string): Promise<StoredUser | null> {
   return usersById.get(userId) ?? null;
 }
 
+async function listUsers(): Promise<StoredUser[]> {
+  return [...usersById.values()];
+}
+
 async function getUserByEmail(email: string): Promise<StoredUser | null> {
   return usersByEmail.get(normalizeEmail(email)) ?? null;
+}
+
+async function updateUserProfile(userId: string, input: { name: string }): Promise<StoredUser | null> {
+  const existing = usersById.get(userId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const updated: StoredUser = {
+    ...existing,
+    name: input.name,
+    updatedAt: new Date()
+  };
+
+  usersById.set(updated.id, updated);
+  usersByEmail.set(updated.email, updated);
+
+  return updated;
 }
 
 async function updateUserRole(
@@ -107,6 +132,39 @@ async function updateUserRole(
   usersByEmail.set(updated.email, updated);
 
   return updated;
+}
+
+async function banUser(userId: string): Promise<StoredUser | null> {
+  const existing = usersById.get(userId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const updated: StoredUser = {
+    ...existing,
+    isBanned: true,
+    bannedAt: existing.bannedAt ?? new Date(),
+    updatedAt: new Date()
+  };
+
+  usersById.set(updated.id, updated);
+  usersByEmail.set(updated.email, updated);
+
+  return updated;
+}
+
+async function deleteUserById(userId: string): Promise<boolean> {
+  const existing = usersById.get(userId);
+
+  if (!existing) {
+    return false;
+  }
+
+  usersById.delete(userId);
+  usersByEmail.delete(existing.email);
+
+  return true;
 }
 
 async function updateUserReputation(userId: string, rating: number): Promise<StoredUser | null> {
@@ -161,8 +219,39 @@ async function listListingRecords(): Promise<StoredListing[]> {
   return [...listingsById.values()];
 }
 
+async function listListingsByOwner(ownerId: string): Promise<StoredListing[]> {
+  return [...listingsById.values()].filter((listing) => listing.ownerId === ownerId);
+}
+
 async function getListingById(listingId: string): Promise<StoredListing | null> {
   return listingsById.get(listingId) ?? null;
+}
+
+async function updateListingRecord(
+  listingId: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    dailyPrice: number;
+    status: StoredListing["status"];
+    riskLevel: StoredListing["riskLevel"];
+  }>
+): Promise<StoredListing | null> {
+  const existing = listingsById.get(listingId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const updated: StoredListing = {
+    ...existing,
+    ...input,
+    updatedAt: new Date()
+  };
+
+  listingsById.set(updated.id, updated);
+
+  return updated;
 }
 
 async function updateListingStatus(listingId: string, status: StoredListing["status"]): Promise<StoredListing | null> {
@@ -233,6 +322,21 @@ async function createRentalRecord(input: {
 
 async function getRentalById(rentalId: string): Promise<StoredRental | null> {
   return rentalsById.get(rentalId) ?? null;
+}
+
+async function listRentalRecords(): Promise<StoredRental[]> {
+  return [...rentalsById.values()];
+}
+
+async function listRentalsByUser(userId: string): Promise<StoredRental[]> {
+  return [...rentalsById.values()].filter((rental) => {
+    if (rental.tenantId === userId) {
+      return true;
+    }
+
+    const listing = listingsById.get(rental.listingId);
+    return listing?.ownerId === userId;
+  });
 }
 
 async function updateRentalStatus(rentalId: string, status: StoredRental["status"]): Promise<StoredRental | null> {
@@ -397,17 +501,25 @@ async function createBoostRecord(input: {
 export const memoryStore: PersistenceStore = {
   reset,
   upsertUserFromAuth,
+  listUsers,
   getUserById,
   getUserByEmail,
+  updateUserProfile,
   updateUserRole,
+  banUser,
+  deleteUserById,
   updateUserReputation,
   createListingRecord,
   listListingRecords,
+  listListingsByOwner,
   getListingById,
+  updateListingRecord,
   updateListingStatus,
   createRiskAssessmentRecord,
   createRentalRecord,
   getRentalById,
+  listRentalRecords,
+  listRentalsByUser,
   updateRentalStatus,
   findReviewByRentalAndReviewer,
   createReviewRecord,
