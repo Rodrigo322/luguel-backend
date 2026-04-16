@@ -66,6 +66,25 @@ npm run dev
 - `GET /api/v1/health`
 - Swagger: `GET /docs`
 
+## Endpoints de domínio (inicial)
+
+- `POST /api/v1/auth/signup`
+- `POST /api/v1/auth/signin`
+- `POST /api/v1/auth/signout`
+- `GET /api/v1/auth/session`
+- `GET /api/v1/users/me`
+- `PATCH /api/v1/users/me/role`
+- `POST /api/v1/listings`
+- `GET /api/v1/listings`
+- `GET /api/v1/listings/:listingId`
+- `POST /api/v1/rentals`
+- `PATCH /api/v1/rentals/:rentalId/status`
+- `POST /api/v1/reviews`
+- `POST /api/v1/reports`
+- `GET /api/v1/admin/reports/critical`
+- `POST /api/v1/admin/listings/:listingId/suspend`
+- `POST /api/v1/boosts`
+
 ## Scripts
 
 - `npm run dev`
@@ -84,5 +103,14 @@ Etapas concluídas nesta entrega:
 
 1. Setup do projeto
 2. Configuração base (Fastify, Prisma, Docker)
+3. Sistema de autenticação (Better Auth + sessão + role)
+4. Usuários
+5. Anúncios
+6. Sistema de risco/validação
+7. Locações
+8. Avaliações
+9. Denúncias
+10. Admin
+11. Impulsionamento
 
-Próxima etapa recomendada: sistema de autenticação com Better Auth + login social Google + autorização por role.
+Observação: para acelerar a etapa inicial e permitir testes E2E isolados sem dependências externas, os módulos de domínio estão persistindo em memória neste momento, mantendo Prisma/PostgreSQL já estruturados e prontos para migração das operações para banco físico na próxima iteração.
