@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  LOCADOR
+  LOCATARIO
+  ADMIN
+}
+
+enum ListingStatus {
+  ACTIVE
+  FLAGGED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum RentalStatus {
+  REQUESTED
+  APPROVED
+  ACTIVE
+  COMPLETED
+  CANCELED
+  DISPUTED
+}
+
+enum ReportStatus {
+  OPEN
+  TRIAGED
+  RESOLVED
+  REJECTED
+}
+
+enum BoostStatus {
+  PENDING
+  PAID
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  name            String
+  passwordHash    String?
+  role            UserRole         @default(LOCATARIO)
+  reputationScore Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  listings        Listing[]        @relation("OwnerListings")
+  rentals         Rental[]         @relation("TenantRentals")
+  reviewsWritten  Review[]         @relation("ReviewerReviews")
+  reviewsReceived Review[]         @relation("ReviewedReviews")
+  reports         Report[]         @relation("ReporterReports")
+  adminLogs       AdminAuditLog[]  @relation("AdminAuditLogs")
+  riskAssessments RiskAssessment[] @relation("UserRiskAssessments")
+}
+
+model Listing {
+  id              String           @id @default(uuid())
+  ownerId         String
+  title           String
+  description     String
+  dailyPrice      Decimal          @db.Decimal(10, 2)
+  status          ListingStatus    @default(ACTIVE)
+  riskLevel       RiskLevel        @default(LOW)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  owner           User             @relation("OwnerListings", fields: [ownerId], references: [id], onDelete: Cascade)
+  rentals         Rental[]
+  reviews         Review[]
+  reports         Report[]
+  boosts          Boost[]
+  riskAssessments RiskAssessment[] @relation("ListingRiskAssessments")
+}
+
+model Rental {
+  id          String       @id @default(uuid())
+  listingId   String
+  tenantId    String
+  startDate   DateTime
+  endDate     DateTime
+  totalPrice  Decimal      @db.Decimal(10, 2)
+  status      RentalStatus @default(REQUESTED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  listing     Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tenant      User         @relation("TenantRentals", fields: [tenantId], references: [id], onDelete: Cascade)
+  reviews     Review[]
+  reports     Report[]
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  listingId  String
+  rentalId   String
+  reviewerId String
+  reviewedId String
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  rental     Rental   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  reviewer   User     @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewed   User     @relation("ReviewedReviews", fields: [reviewedId], references: [id], onDelete: Cascade)
+
+  @@unique([rentalId, reviewerId])
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  listingId  String?
+  rentalId   String?
+  reason     String
+  details    String?
+  status     ReportStatus @default(OPEN)
+  riskLevel  RiskLevel    @default(MEDIUM)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  reporter   User         @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  listing    Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  rental     Rental?      @relation(fields: [rentalId], references: [id], onDelete: SetNull)
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  admin      User?    @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: SetNull)
+}
+
+model Boost {
+  id        String      @id @default(uuid())
+  listingId String
+  status    BoostStatus @default(PENDING)
+  amount    Decimal     @db.Decimal(10, 2)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  listing   Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model RiskAssessment {
+  id        String    @id @default(uuid())
+  userId    String?
+  listingId String?
+  score     Int
+  level     RiskLevel
+  reasons   Json
+  createdAt DateTime  @default(now())
+  user      User?     @relation("UserRiskAssessments", fields: [userId], references: [id], onDelete: SetNull)
+  listing   Listing?  @relation("ListingRiskAssessments", fields: [listingId], references: [id], onDelete: SetNull)
+}
