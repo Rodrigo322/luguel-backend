@@ -7,7 +7,7 @@ async function startServer(): Promise<void> {
   try {
     await app.listen({ port: env.PORT, host: "0.0.0.0" });
   } catch (error) {
-    app.log.error(error);
+    app.log.error(error as Error);
     process.exit(1);
   }
 }

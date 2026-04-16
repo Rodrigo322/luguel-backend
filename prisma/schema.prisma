@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -54,8 +53,9 @@ enum RiskLevel {
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
+  emailVerified   Boolean          @default(false)
+  image           String?
   name            String
-  passwordHash    String?
   role            UserRole         @default(LOCATARIO)
   reputationScore Int              @default(0)
   createdAt       DateTime         @default(now())
@@ -67,6 +67,8 @@ model User {
   reports         Report[]         @relation("ReporterReports")
   adminLogs       AdminAuditLog[]  @relation("AdminAuditLogs")
   riskAssessments RiskAssessment[] @relation("UserRiskAssessments")
+  sessions        Session[]
+  accounts        Account[]
 }
 
 model Listing {
@@ -169,4 +171,44 @@ model RiskAssessment {
   createdAt DateTime  @default(now())
   user      User?     @relation("UserRiskAssessments", fields: [userId], references: [id], onDelete: SetNull)
   listing   Listing?  @relation("ListingRiskAssessments", fields: [listingId], references: [id], onDelete: SetNull)
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

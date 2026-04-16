@@ -15,7 +15,10 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default("change-this-secret-in-production-with-at-least-32-chars"),
-  BETTER_AUTH_URL: z.string().url().default("http://localhost:3333")
+  BETTER_AUTH_URL: z.string().url().default("http://localhost:3333"),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  ADMIN_EMAILS: z.string().default("")
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
