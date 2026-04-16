@@ -1,6 +1,17 @@
 # Luguel Backend
 
-Backend da plataforma universal de aluguel, seguindo arquitetura DDD e stack oficial.
+Backend da plataforma universal de aluguel com DDD, Fastify, Prisma, Better Auth e Swagger.
+
+## Documentacao Completa
+
+- [Indice Geral](./docs/INDEX.md)
+- [Visao Geral e Status](./docs/PROJECT_STATUS.md)
+- [Arquitetura DDD](./docs/ARCHITECTURE.md)
+- [Setup e Execucao](./docs/SETUP_AND_RUN.md)
+- [Referencia de API](./docs/API_REFERENCE.md)
+- [Seguranca](./docs/SECURITY.md)
+- [Testes](./docs/TESTS.md)
+- [Guia para Frontend Mobile](./docs/MOBILE_INTEGRATION.md)
 
 ## Stack
 
@@ -15,131 +26,50 @@ Backend da plataforma universal de aluguel, seguindo arquitetura DDD e stack ofi
 - Redis
 - Docker
 
-## Estrutura DDD
+## Endpoints Base
 
-```text
-src/
-  domain/
-  application/
-  infra/
-  interfaces/
-  shared/
-```
+- API Health: `GET /api/v1/health`
+- Swagger UI: `GET /docs`
+- OpenAPI JSON: `GET /docs/json`
 
-## Requisitos
+## Inicio Rapido
 
-- Node.js 20+
-- Docker + Docker Compose
-
-## Configuracao
-
-1. Copie variaveis de ambiente:
+1. Instale dependencias:
 
 ```bash
-cp .env.example .env
+npm install
 ```
 
-2. Suba banco e redis:
+2. Configure ambiente:
+
+```bash
+copy .env.example .env
+```
+
+3. Suba banco e redis:
 
 ```bash
 docker compose up -d postgres redis
 ```
 
-3. Gere o client Prisma:
+4. Prisma:
 
 ```bash
 npm run prisma:generate
-```
-
-4. Aplique as migrations:
-
-```bash
 npm run prisma:migrate
 ```
 
-5. Inicie a API:
+5. Rode API:
 
 ```bash
 npm run dev
 ```
 
-## Endpoints base
+## Qualidade Atual
 
-- `GET /api/v1/health`
-- Swagger UI: `GET /docs`
-- OpenAPI JSON: `GET /docs/json`
+- 44 arquivos de teste
+- 80 testes passando (`npm run test`)
 
-## Endpoints de dominio
+## Licenca
 
-- `POST /api/v1/auth/signup`
-- `POST /api/v1/auth/signin`
-- `POST /api/v1/auth/signout`
-- `GET /api/v1/auth/session`
-- `POST /api/v1/auth/session/refresh`
-- `POST /api/v1/auth/password/forgot`
-- `POST /api/v1/auth/password/reset`
-- `GET /api/v1/auth/social/google`
-- `GET /api/v1/users/me`
-- `PATCH /api/v1/users/me`
-- `PATCH /api/v1/users/me/role`
-- `DELETE /api/v1/users/me`
-- `GET /api/v1/users` (admin)
-- `GET /api/v1/users/:userId` (admin)
-- `POST /api/v1/listings`
-- `GET /api/v1/listings`
-- `GET /api/v1/listings/:listingId`
-- `PATCH /api/v1/listings/:listingId`
-- `DELETE /api/v1/listings/:listingId`
-- `POST /api/v1/rentals`
-- `GET /api/v1/rentals`
-- `GET /api/v1/rentals/:rentalId`
-- `PATCH /api/v1/rentals/:rentalId/status`
-- `POST /api/v1/reviews`
-- `POST /api/v1/reports`
-- `POST /api/v1/reports/attachments` (upload seguro)
-- `GET /api/v1/admin/reports/critical`
-- `PATCH /api/v1/admin/reports/:reportId/status`
-- `POST /api/v1/admin/listings/:listingId/suspend`
-- `POST /api/v1/admin/listings/:listingId/archive`
-- `POST /api/v1/admin/users/:userId/ban`
-- `POST /api/v1/boosts`
-
-## Seguranca implementada
-
-- Better Auth com sessao e login social Google
-- Rate limit global com Redis (fallback seguro em erro de rede)
-- Validacao de entrada com Zod
-- RBAC por role (`LOCADOR`, `LOCATARIO`, `ADMIN`)
-- Headers de seguranca com Helmet
-- Protecao anti upload malicioso:
-  - limite de tamanho
-  - allowlist de tipos/extensoes
-  - bloqueio de extensoes executaveis
-  - validacao de assinatura de arquivo
-- Auditoria de eventos criticos em logs estruturados
-
-## Persistencia
-
-- `PERSISTENCE_DRIVER=prisma` (padrao fora de testes): PostgreSQL via Prisma
-- `NODE_ENV=test`: store em memoria forcado para isolamento de testes
-
-## Migrations
-
-- Migration inicial versionada em `prisma/migrations/20260416100000_init`.
-
-## Scripts
-
-- `npm run dev`
-- `npm run build`
-- `npm run start`
-- `npm run test`
-- `npm run test:unit`
-- `npm run test:integration`
-- `npm run test:e2e`
-- `npm run prisma:generate`
-- `npm run prisma:migrate`
-- `npm run prisma:deploy`
-
-## Testes
-
-- Suite completa com `80` testes automatizados (unitarios, integracao e E2E).
+MIT
