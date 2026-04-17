@@ -5,6 +5,7 @@ import type {
   PersistenceStore,
   StoredAdminAuditLog,
   StoredBoost,
+  StoredListingAvailabilitySlot,
   StoredListing,
   StoredRental,
   StoredReport,
@@ -75,7 +76,12 @@ export async function createListingRecord(input: {
   ownerId: string;
   title: string;
   description: string;
+  category?: string;
+  city?: string;
+  region?: string;
   dailyPrice: number;
+  deliveryMode?: StoredListing["deliveryMode"];
+  bookingMode?: StoredListing["bookingMode"];
   status: StoredListing["status"];
   riskLevel: StoredListing["riskLevel"];
 }): Promise<StoredListing> {
@@ -99,7 +105,12 @@ export async function updateListingRecord(
   input: Partial<{
     title: string;
     description: string;
+    category: string;
+    city: string;
+    region: string;
     dailyPrice: number;
+    deliveryMode: StoredListing["deliveryMode"];
+    bookingMode: StoredListing["bookingMode"];
     status: StoredListing["status"];
     riskLevel: StoredListing["riskLevel"];
   }>
@@ -112,6 +123,28 @@ export async function updateListingStatus(
   status: StoredListing["status"]
 ): Promise<StoredListing | null> {
   return store.updateListingStatus(listingId, status);
+}
+
+export async function replaceListingAvailabilitySlots(input: {
+  listingId: string;
+  slots: Array<{
+    date: Date;
+    status: StoredListingAvailabilitySlot["status"];
+    pickupTime?: string;
+    returnTime?: string;
+  }>;
+}): Promise<StoredListingAvailabilitySlot[]> {
+  return store.replaceListingAvailabilitySlots(input);
+}
+
+export async function listListingAvailabilityByListing(
+  listingId: string
+): Promise<StoredListingAvailabilitySlot[]> {
+  return store.listListingAvailabilityByListing(listingId);
+}
+
+export async function listListingAvailabilityRecords(): Promise<StoredListingAvailabilitySlot[]> {
+  return store.listListingAvailabilityRecords();
 }
 
 export async function createRiskAssessmentRecord(input: {

@@ -20,6 +20,18 @@ enum ListingStatus {
   ARCHIVED
 }
 
+enum ListingDeliveryMode {
+  PICKUP
+  DELIVERY
+  BOTH
+}
+
+enum ListingBookingMode {
+  IMMEDIATE
+  SCHEDULED
+  BOTH
+}
+
 enum RentalStatus {
   REQUESTED
   APPROVED
@@ -51,6 +63,11 @@ enum RiskLevel {
   CRITICAL
 }
 
+enum ListingAvailabilityStatus {
+  FREE
+  BLOCKED
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -75,21 +92,42 @@ model User {
 }
 
 model Listing {
-  id              String           @id @default(uuid())
-  ownerId         String
-  title           String
-  description     String
-  dailyPrice      Decimal          @db.Decimal(10, 2)
-  status          ListingStatus    @default(ACTIVE)
-  riskLevel       RiskLevel        @default(LOW)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  owner           User             @relation("OwnerListings", fields: [ownerId], references: [id], onDelete: Cascade)
-  rentals         Rental[]
-  reviews         Review[]
-  reports         Report[]
-  boosts          Boost[]
-  riskAssessments RiskAssessment[] @relation("ListingRiskAssessments")
+  id                 String                    @id @default(uuid())
+  ownerId            String
+  title              String
+  description        String
+  category           String?
+  city               String?
+  region             String?
+  dailyPrice         Decimal                   @db.Decimal(10, 2)
+  deliveryMode       ListingDeliveryMode       @default(BOTH)
+  bookingMode        ListingBookingMode        @default(BOTH)
+  status             ListingStatus             @default(ACTIVE)
+  riskLevel          RiskLevel                 @default(LOW)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  owner              User                      @relation("OwnerListings", fields: [ownerId], references: [id], onDelete: Cascade)
+  rentals            Rental[]
+  reviews            Review[]
+  reports            Report[]
+  boosts             Boost[]
+  availabilitySlots  ListingAvailabilitySlot[]
+  riskAssessments    RiskAssessment[]          @relation("ListingRiskAssessments")
+}
+
+model ListingAvailabilitySlot {
+  id          String                   @id @default(uuid())
+  listingId   String
+  date        DateTime
+  status      ListingAvailabilityStatus
+  pickupTime  String?
+  returnTime  String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  listing     Listing                  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, date])
+  @@index([listingId, date])
 }
 
 model Rental {

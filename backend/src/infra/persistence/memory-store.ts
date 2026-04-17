@@ -5,6 +5,7 @@ import type {
   PersistenceStore,
   StoredAdminAuditLog,
   StoredBoost,
+  StoredListingAvailabilitySlot,
   StoredListing,
   StoredRental,
   StoredReport,
@@ -26,6 +27,7 @@ const rentalsById = new Map<string, StoredRental>();
 const reviewsById = new Map<string, StoredReview>();
 const reportsById = new Map<string, StoredReport>();
 const boostsById = new Map<string, StoredBoost>();
+const listingAvailabilityById = new Map<string, StoredListingAvailabilitySlot>();
 const riskAssessmentsById = new Map<string, StoredRiskAssessment>();
 const adminAuditLogsById = new Map<string, StoredAdminAuditLog>();
 
@@ -41,6 +43,7 @@ async function reset(): Promise<void> {
   reviewsById.clear();
   reportsById.clear();
   boostsById.clear();
+  listingAvailabilityById.clear();
   riskAssessmentsById.clear();
   adminAuditLogsById.clear();
 }
@@ -193,7 +196,12 @@ async function createListingRecord(input: {
   ownerId: string;
   title: string;
   description: string;
+  category?: string;
+  city?: string;
+  region?: string;
   dailyPrice: number;
+  deliveryMode?: StoredListing["deliveryMode"];
+  bookingMode?: StoredListing["bookingMode"];
   status: StoredListing["status"];
   riskLevel: StoredListing["riskLevel"];
 }): Promise<StoredListing> {
@@ -203,7 +211,12 @@ async function createListingRecord(input: {
     ownerId: input.ownerId,
     title: input.title,
     description: input.description,
+    category: input.category,
+    city: input.city,
+    region: input.region,
     dailyPrice: input.dailyPrice,
+    deliveryMode: input.deliveryMode ?? "BOTH",
+    bookingMode: input.bookingMode ?? "BOTH",
     status: input.status,
     riskLevel: input.riskLevel,
     createdAt: now,
@@ -232,7 +245,12 @@ async function updateListingRecord(
   input: Partial<{
     title: string;
     description: string;
+    category: string;
+    city: string;
+    region: string;
     dailyPrice: number;
+    deliveryMode: StoredListing["deliveryMode"];
+    bookingMode: StoredListing["bookingMode"];
     status: StoredListing["status"];
     riskLevel: StoredListing["riskLevel"];
   }>
@@ -270,6 +288,59 @@ async function updateListingStatus(listingId: string, status: StoredListing["sta
   listingsById.set(updated.id, updated);
 
   return updated;
+}
+
+async function replaceListingAvailabilitySlots(input: {
+  listingId: string;
+  slots: Array<{
+    date: Date;
+    status: StoredListingAvailabilitySlot["status"];
+    pickupTime?: string;
+    returnTime?: string;
+  }>;
+}): Promise<StoredListingAvailabilitySlot[]> {
+  const listingExists = listingsById.has(input.listingId);
+
+  if (!listingExists) {
+    return [];
+  }
+
+  for (const slot of [...listingAvailabilityById.values()]) {
+    if (slot.listingId === input.listingId) {
+      listingAvailabilityById.delete(slot.id);
+    }
+  }
+
+  const now = new Date();
+  const createdSlots: StoredListingAvailabilitySlot[] = input.slots.map((slot) => {
+    const created: StoredListingAvailabilitySlot = {
+      id: randomUUID(),
+      listingId: input.listingId,
+      date: slot.date,
+      status: slot.status,
+      pickupTime: slot.pickupTime,
+      returnTime: slot.returnTime,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    listingAvailabilityById.set(created.id, created);
+    return created;
+  });
+
+  return createdSlots.sort((left, right) => left.date.getTime() - right.date.getTime());
+}
+
+async function listListingAvailabilityByListing(
+  listingId: string
+): Promise<StoredListingAvailabilitySlot[]> {
+  return [...listingAvailabilityById.values()]
+    .filter((slot) => slot.listingId === listingId)
+    .sort((left, right) => left.date.getTime() - right.date.getTime());
+}
+
+async function listListingAvailabilityRecords(): Promise<StoredListingAvailabilitySlot[]> {
+  return [...listingAvailabilityById.values()].sort((left, right) => left.date.getTime() - right.date.getTime());
 }
 
 async function createRiskAssessmentRecord(input: {
@@ -523,6 +594,9 @@ export const memoryStore: PersistenceStore = {
   getListingById,
   updateListingRecord,
   updateListingStatus,
+  replaceListingAvailabilitySlots,
+  listListingAvailabilityByListing,
+  listListingAvailabilityRecords,
   createRiskAssessmentRecord,
   createRentalRecord,
   getRentalById,

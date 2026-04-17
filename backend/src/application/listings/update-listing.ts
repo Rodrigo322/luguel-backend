@@ -4,6 +4,13 @@ import {
   ensureValidDailyPrice,
   resolveListingStatusFromRisk
 } from "../../domain/listings/services/listing-rules";
+import {
+  ensureValidListingBookingMode,
+  ensureValidListingCategory,
+  ensureValidListingCity,
+  ensureValidListingDeliveryMode,
+  ensureValidListingRegion
+} from "../../domain/listings/services/listing-availability-rules";
 import { DomainError } from "../../domain/shared/errors/domain-error";
 import { assessListingRisk } from "../../domain/shared/risk/risk-assessor";
 import {
@@ -21,7 +28,12 @@ interface UpdateListingInput {
   listingId: string;
   title?: string;
   description?: string;
+  category?: string;
+  city?: string;
+  region?: string;
   dailyPrice?: number;
+  deliveryMode?: "PICKUP" | "DELIVERY" | "BOTH";
+  bookingMode?: "IMMEDIATE" | "SCHEDULED" | "BOTH";
 }
 
 export async function updateListing(input: UpdateListingInput) {
@@ -46,7 +58,14 @@ export async function updateListing(input: UpdateListingInput) {
   }
 
   const hasUpdates =
-    input.title !== undefined || input.description !== undefined || input.dailyPrice !== undefined;
+    input.title !== undefined ||
+    input.description !== undefined ||
+    input.category !== undefined ||
+    input.city !== undefined ||
+    input.region !== undefined ||
+    input.dailyPrice !== undefined ||
+    input.deliveryMode !== undefined ||
+    input.bookingMode !== undefined;
 
   if (!hasUpdates) {
     throw new DomainError("At least one listing field must be informed.", 400, "NoListingFieldsToUpdate");
@@ -58,7 +77,18 @@ export async function updateListing(input: UpdateListingInput) {
 
   const title = input.title ?? listing.title;
   const description = input.description ?? listing.description;
+  const category = input.category !== undefined ? ensureValidListingCategory(input.category) : listing.category;
+  const city = input.city !== undefined ? ensureValidListingCity(input.city) : listing.city;
+  const region = input.region !== undefined ? ensureValidListingRegion(input.region) : listing.region;
   const dailyPrice = input.dailyPrice ?? listing.dailyPrice;
+  const deliveryMode =
+    input.deliveryMode !== undefined
+      ? ensureValidListingDeliveryMode(input.deliveryMode)
+      : listing.deliveryMode;
+  const bookingMode =
+    input.bookingMode !== undefined
+      ? ensureValidListingBookingMode(input.bookingMode)
+      : listing.bookingMode;
 
   const risk = assessListingRisk({
     title,
@@ -70,7 +100,12 @@ export async function updateListing(input: UpdateListingInput) {
   const updatedListing = await updateListingRecord(listing.id, {
     title,
     description,
+    category,
+    city,
+    region,
     dailyPrice,
+    deliveryMode,
+    bookingMode,
     riskLevel: risk.level,
     status: resolveListingStatusFromRisk(risk.level)
   });

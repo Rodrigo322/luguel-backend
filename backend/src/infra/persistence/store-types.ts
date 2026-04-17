@@ -1,4 +1,11 @@
 import type { ListingStatus } from "../../domain/listings/entities/listing";
+import type {
+  ListingBookingMode,
+  ListingDeliveryMode
+} from "../../domain/listings/entities/listing";
+import type {
+  ListingAvailabilityStatus
+} from "../../domain/listings/entities/listing-availability";
 import type { RentalStatus } from "../../domain/rentals/entities/rental";
 import type { ReportStatus } from "../../domain/reports/entities/report";
 import type { BoostStatus } from "../../domain/boost/entities/boost";
@@ -22,9 +29,25 @@ export interface StoredListing {
   ownerId: string;
   title: string;
   description: string;
+  category?: string;
+  city?: string;
+  region?: string;
   dailyPrice: number;
+  deliveryMode: ListingDeliveryMode;
+  bookingMode: ListingBookingMode;
   status: ListingStatus;
   riskLevel: RiskLevel;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StoredListingAvailabilitySlot {
+  id: string;
+  listingId: string;
+  date: Date;
+  status: ListingAvailabilityStatus;
+  pickupTime?: string;
+  returnTime?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -113,7 +136,12 @@ export interface PersistenceStore {
     ownerId: string;
     title: string;
     description: string;
+    category?: string;
+    city?: string;
+    region?: string;
     dailyPrice: number;
+    deliveryMode?: ListingDeliveryMode;
+    bookingMode?: ListingBookingMode;
     status: ListingStatus;
     riskLevel: RiskLevel;
   }): Promise<StoredListing>;
@@ -125,12 +153,29 @@ export interface PersistenceStore {
     input: Partial<{
       title: string;
       description: string;
+      category: string;
+      city: string;
+      region: string;
       dailyPrice: number;
+      deliveryMode: ListingDeliveryMode;
+      bookingMode: ListingBookingMode;
       status: ListingStatus;
       riskLevel: RiskLevel;
     }>
   ): Promise<StoredListing | null>;
   updateListingStatus(listingId: string, status: ListingStatus): Promise<StoredListing | null>;
+
+  replaceListingAvailabilitySlots(input: {
+    listingId: string;
+    slots: Array<{
+      date: Date;
+      status: ListingAvailabilityStatus;
+      pickupTime?: string;
+      returnTime?: string;
+    }>;
+  }): Promise<StoredListingAvailabilitySlot[]>;
+  listListingAvailabilityByListing(listingId: string): Promise<StoredListingAvailabilitySlot[]>;
+  listListingAvailabilityRecords(): Promise<StoredListingAvailabilitySlot[]>;
 
   createRiskAssessmentRecord(input: {
     userId?: string;

@@ -5,6 +5,7 @@ import type {
   PersistenceStore,
   StoredAdminAuditLog,
   StoredBoost,
+  StoredListingAvailabilitySlot,
   StoredListing,
   StoredRental,
   StoredReport,
@@ -60,7 +61,12 @@ function toStoredListing(listing: {
   ownerId: string;
   title: string;
   description: string;
+  category: string | null;
+  city: string | null;
+  region: string | null;
   dailyPrice: unknown;
+  deliveryMode: StoredListing["deliveryMode"];
+  bookingMode: StoredListing["bookingMode"];
   status: StoredListing["status"];
   riskLevel: StoredListing["riskLevel"];
   createdAt: Date;
@@ -71,11 +77,38 @@ function toStoredListing(listing: {
     ownerId: listing.ownerId,
     title: listing.title,
     description: listing.description,
+    category: listing.category ?? undefined,
+    city: listing.city ?? undefined,
+    region: listing.region ?? undefined,
     dailyPrice: toNumber(listing.dailyPrice),
+    deliveryMode: listing.deliveryMode,
+    bookingMode: listing.bookingMode,
     status: listing.status,
     riskLevel: listing.riskLevel,
     createdAt: listing.createdAt,
     updatedAt: listing.updatedAt
+  };
+}
+
+function toStoredAvailabilitySlot(slot: {
+  id: string;
+  listingId: string;
+  date: Date;
+  status: StoredListingAvailabilitySlot["status"];
+  pickupTime: string | null;
+  returnTime: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): StoredListingAvailabilitySlot {
+  return {
+    id: slot.id,
+    listingId: slot.listingId,
+    date: slot.date,
+    status: slot.status,
+    pickupTime: slot.pickupTime ?? undefined,
+    returnTime: slot.returnTime ?? undefined,
+    createdAt: slot.createdAt,
+    updatedAt: slot.updatedAt
   };
 }
 
@@ -263,7 +296,12 @@ async function createListingRecord(input: {
   ownerId: string;
   title: string;
   description: string;
+  category?: string;
+  city?: string;
+  region?: string;
   dailyPrice: number;
+  deliveryMode?: StoredListing["deliveryMode"];
+  bookingMode?: StoredListing["bookingMode"];
   status: StoredListing["status"];
   riskLevel: StoredListing["riskLevel"];
 }): Promise<StoredListing> {
@@ -272,7 +310,12 @@ async function createListingRecord(input: {
       ownerId: input.ownerId,
       title: input.title,
       description: input.description,
+      category: input.category,
+      city: input.city,
+      region: input.region,
       dailyPrice: input.dailyPrice,
+      deliveryMode: input.deliveryMode ?? "BOTH",
+      bookingMode: input.bookingMode ?? "BOTH",
       status: input.status,
       riskLevel: input.riskLevel
     }
@@ -308,7 +351,12 @@ async function updateListingRecord(
   input: Partial<{
     title: string;
     description: string;
+    category: string;
+    city: string;
+    region: string;
     dailyPrice: number;
+    deliveryMode: StoredListing["deliveryMode"];
+    bookingMode: StoredListing["bookingMode"];
     status: StoredListing["status"];
     riskLevel: StoredListing["riskLevel"];
   }>
@@ -319,6 +367,74 @@ async function updateListingRecord(
   }).catch(() => null);
 
   return listing ? toStoredListing(listing) : null;
+}
+
+async function replaceListingAvailabilitySlots(input: {
+  listingId: string;
+  slots: Array<{
+    date: Date;
+    status: StoredListingAvailabilitySlot["status"];
+    pickupTime?: string;
+    returnTime?: string;
+  }>;
+}): Promise<StoredListingAvailabilitySlot[]> {
+  const listing = await prisma.listing.findUnique({
+    where: { id: input.listingId },
+    select: { id: true }
+  });
+
+  if (!listing) {
+    return [];
+  }
+
+  const slots = await prisma.$transaction(async (tx) => {
+    await tx.listingAvailabilitySlot.deleteMany({
+      where: {
+        listingId: input.listingId
+      }
+    });
+
+    if (input.slots.length === 0) {
+      return [];
+    }
+
+    const created = await Promise.all(
+      input.slots.map((slot) =>
+        tx.listingAvailabilitySlot.create({
+          data: {
+            listingId: input.listingId,
+            date: slot.date,
+            status: slot.status,
+            pickupTime: slot.pickupTime,
+            returnTime: slot.returnTime
+          }
+        })
+      )
+    );
+
+    return created;
+  });
+
+  return slots.map(toStoredAvailabilitySlot).sort((left, right) => left.date.getTime() - right.date.getTime());
+}
+
+async function listListingAvailabilityByListing(
+  listingId: string
+): Promise<StoredListingAvailabilitySlot[]> {
+  const slots = await prisma.listingAvailabilitySlot.findMany({
+    where: { listingId },
+    orderBy: { date: "asc" }
+  });
+
+  return slots.map(toStoredAvailabilitySlot);
+}
+
+async function listListingAvailabilityRecords(): Promise<StoredListingAvailabilitySlot[]> {
+  const slots = await prisma.listingAvailabilitySlot.findMany({
+    orderBy: [{ listingId: "asc" }, { date: "asc" }]
+  });
+
+  return slots.map(toStoredAvailabilitySlot);
 }
 
 async function updateListingStatus(
@@ -645,6 +761,9 @@ export const prismaStore: PersistenceStore = {
   getListingById,
   updateListingRecord,
   updateListingStatus,
+  replaceListingAvailabilitySlots,
+  listListingAvailabilityByListing,
+  listListingAvailabilityRecords,
   createRiskAssessmentRecord,
   createRentalRecord,
   getRentalById,
