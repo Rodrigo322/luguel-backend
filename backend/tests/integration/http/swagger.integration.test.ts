@@ -27,6 +27,7 @@ describe("Swagger docs", () => {
     expect(response.body.paths["/api/v1/users"]).toBeDefined();
     expect(response.body.paths["/api/v1/listings/{listingId}"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/reports"]).toBeDefined();
+    expect(response.body.paths["/api/v1/admin/reports/{reportId}/takedown"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/users/{userId}/ban"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/users/{userId}/role"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/listings/{listingId}/approve"]).toBeDefined();

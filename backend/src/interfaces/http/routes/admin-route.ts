@@ -9,6 +9,7 @@ import { listReports } from "../../../application/admin/list-reports";
 import { rejectListingByAdmin } from "../../../application/admin/reject-listing";
 import { reviewReport } from "../../../application/admin/review-report";
 import { suspendCriticalListing } from "../../../application/admin/suspend-critical-listing";
+import { takeDownReportContent } from "../../../application/admin/take-down-report-content";
 import { updateUserRoleByAdmin } from "../../../application/admin/update-user-role";
 import { writeAuditLog } from "../../../infra/logging/audit-logger";
 import { getListingById, getRentalById } from "../../../infra/persistence/in-memory-store";
@@ -59,6 +60,10 @@ const updateUserRoleBodySchema = z.object({
 });
 
 const rejectListingBodySchema = z.object({
+  reason: z.string().min(8).max(500)
+});
+
+const takeDownReportBodySchema = z.object({
   reason: z.string().min(8).max(500)
 });
 
@@ -321,6 +326,68 @@ export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         });
 
         return reply.status(200).send(serializeReport(reviewed));
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
+    }
+  });
+
+  typedApp.route({
+    method: "POST",
+    url: "/admin/reports/:reportId/takedown",
+    schema: {
+      tags: ["Admin"],
+      summary: "Remove conteudo denunciado",
+      description:
+        "Aplica acao de takedown para o alvo da denuncia (anuncio ou locacao) e resolve o reporte.",
+      params: z.object({
+        reportId: z.string().uuid()
+      }),
+      body: takeDownReportBodySchema,
+      response: {
+        200: reportSchema,
+        400: z.object({ error: z.string(), message: z.string() }),
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() }),
+        404: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      if (!requireRoles(context, ["ADMIN"], reply)) {
+        return;
+      }
+
+      try {
+        const resolved = await takeDownReportContent({
+          adminId: context.user.id,
+          reportId: request.params.reportId,
+          reason: request.body.reason
+        });
+
+        const reportPayload = serializeReport({
+          ...resolved,
+          subjectUserId: await resolveSubjectUserId(resolved)
+        });
+
+        writeAuditLog(request.log, {
+          action: "ADMIN_REPORT_CONTENT_TAKEDOWN",
+          actorId: context.user.id,
+          entityType: "report",
+          entityId: resolved.id,
+          metadata: {
+            reason: request.body.reason,
+            listingId: resolved.listingId,
+            rentalId: resolved.rentalId
+          }
+        });
+
+        return reply.status(200).send(reportPayload);
       } catch (error) {
         handleDomainError(reply, error);
       }
