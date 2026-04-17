@@ -2,4 +2,6 @@ tests
 coverage
 dist
 .git
+.env
+.env.*
 *.log
