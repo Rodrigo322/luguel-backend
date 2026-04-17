@@ -4,6 +4,7 @@ import { z } from "zod";
 import { approveListingByAdmin } from "../../../application/admin/approve-listing";
 import { archiveListingByAdmin } from "../../../application/admin/archive-listing";
 import { banUserFlow } from "../../../application/admin/ban-user";
+import { getAdminMetrics } from "../../../application/admin/get-admin-metrics";
 import { listCriticalReports } from "../../../application/admin/list-critical-reports";
 import { listReports } from "../../../application/admin/list-reports";
 import { rejectListingByAdmin } from "../../../application/admin/reject-listing";
@@ -85,6 +86,18 @@ const reportListResponseSchema = z.object({
   })
 });
 
+const adminMetricsSchema = z.object({
+  totalUsers: z.number().int().nonnegative(),
+  totalListings: z.number().int().nonnegative(),
+  totalRentals: z.number().int().nonnegative(),
+  totalReports: z.number().int().nonnegative(),
+  criticalReports: z.number().int().nonnegative(),
+  highRiskListings: z.number().int().nonnegative(),
+  pendingListings: z.number().int().nonnegative(),
+  activeBoosts: z.number().int().nonnegative(),
+  bannedUsers: z.number().int().nonnegative()
+});
+
 function serializeReport(report: {
   id: string;
   reporterId: string;
@@ -161,6 +174,43 @@ function serializeUser(user: {
 
 export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
+
+  typedApp.route({
+    method: "GET",
+    url: "/admin/metrics",
+    schema: {
+      tags: ["Admin"],
+      summary: "Metricas administrativas",
+      description: "Retorna metricas consolidadas para dashboard e monitoramento operacional.",
+      response: {
+        200: adminMetricsSchema,
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      if (!requireRoles(context, ["ADMIN"], reply)) {
+        return;
+      }
+
+      const metrics = await getAdminMetrics();
+
+      writeAuditLog(request.log, {
+        action: "ADMIN_METRICS_FETCHED",
+        actorId: context.user.id,
+        entityType: "dashboard",
+        entityId: "admin-metrics"
+      });
+
+      return reply.status(200).send(metrics);
+    }
+  });
 
   typedApp.route({
     method: "GET",
