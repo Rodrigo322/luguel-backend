@@ -5,6 +5,7 @@ import { approveListingByAdmin } from "../../../application/admin/approve-listin
 import { archiveListingByAdmin } from "../../../application/admin/archive-listing";
 import { banUserFlow } from "../../../application/admin/ban-user";
 import { listCriticalReports } from "../../../application/admin/list-critical-reports";
+import { listReports } from "../../../application/admin/list-reports";
 import { rejectListingByAdmin } from "../../../application/admin/reject-listing";
 import { reviewReport } from "../../../application/admin/review-report";
 import { suspendCriticalListing } from "../../../application/admin/suspend-critical-listing";
@@ -59,6 +60,24 @@ const updateUserRoleBodySchema = z.object({
 
 const rejectListingBodySchema = z.object({
   reason: z.string().min(8).max(500)
+});
+
+const reportListQuerySchema = z.object({
+  status: z.enum(["OPEN", "TRIAGED", "RESOLVED", "REJECTED"]).optional(),
+  riskLevel: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20)
+});
+
+const reportListResponseSchema = z.object({
+  reports: z.array(reportSchema),
+  pagination: z.object({
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    total: z.number().int().min(0),
+    totalPages: z.number().int().min(1)
+  })
 });
 
 function serializeReport(report: {
@@ -137,6 +156,69 @@ function serializeUser(user: {
 
 export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
+
+  typedApp.route({
+    method: "GET",
+    url: "/admin/reports",
+    schema: {
+      tags: ["Admin"],
+      summary: "Lista denuncias",
+      description: "Lista denuncias com filtros de status, risco e pesquisa textual.",
+      querystring: reportListQuerySchema,
+      response: {
+        200: reportListResponseSchema,
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      if (!requireRoles(context, ["ADMIN"], reply)) {
+        return;
+      }
+
+      const reportList = await listReports({
+        status: request.query.status,
+        riskLevel: request.query.riskLevel,
+        search: request.query.search,
+        page: request.query.page,
+        pageSize: request.query.pageSize
+      });
+
+      const reports = await Promise.all(
+        reportList.reports.map(async (report) =>
+          serializeReport({
+            ...report,
+            subjectUserId: await resolveSubjectUserId(report)
+          })
+        )
+      );
+
+      writeAuditLog(request.log, {
+        action: "ADMIN_REPORTS_FETCHED",
+        actorId: context.user.id,
+        entityType: "report",
+        entityId: "collection",
+        metadata: {
+          count: reports.length,
+          page: request.query.page,
+          pageSize: request.query.pageSize,
+          status: request.query.status,
+          riskLevel: request.query.riskLevel
+        }
+      });
+
+      return reply.status(200).send({
+        reports,
+        pagination: reportList.pagination
+      });
+    }
+  });
 
   typedApp.route({
     method: "GET",
