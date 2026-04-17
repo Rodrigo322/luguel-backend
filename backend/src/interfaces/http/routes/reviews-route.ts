@@ -1,0 +1,129 @@
+import type { FastifyInstance } from "fastify";
+import { ZodTypeProvider } from "fastify-type-provider-zod";
+import { z } from "zod";
+import { createReview } from "../../../application/reviews/create-review";
+import { listReviewsFlow } from "../../../application/reviews/list-reviews";
+import { writeAuditLog } from "../../../infra/logging/audit-logger";
+import type { AppAuth } from "../auth/create-auth";
+import { requireAuth, requireRoles } from "../auth/guards";
+import { handleDomainError } from "../errors/handle-domain-error";
+
+const createReviewBodySchema = z.object({
+  listingId: z.string().uuid(),
+  rentalId: z.string().uuid(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(1200).optional()
+});
+
+const reviewSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  rentalId: z.string(),
+  reviewerId: z.string(),
+  reviewedId: z.string(),
+  rating: z.number().int(),
+  comment: z.string().optional(),
+  createdAt: z.string().datetime()
+});
+
+export async function reviewsRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
+  const typedApp = app.withTypeProvider<ZodTypeProvider>();
+
+  typedApp.route({
+    method: "GET",
+    url: "/reviews",
+    schema: {
+      tags: ["Reviews"],
+      summary: "Lista avaliacoes",
+      description: "Lista avaliacoes para monitoramento administrativo.",
+      response: {
+        200: z.object({
+          reviews: z.array(reviewSchema)
+        }),
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      if (!requireRoles(context, ["ADMIN"], reply)) {
+        return;
+      }
+
+      const reviews = (await listReviewsFlow()).map((review) => ({
+        ...review,
+        createdAt: review.createdAt.toISOString()
+      }));
+
+      writeAuditLog(request.log, {
+        action: "REVIEWS_LIST_FETCHED",
+        actorId: context.user.id,
+        entityType: "review",
+        entityId: "collection",
+        metadata: {
+          count: reviews.length
+        }
+      });
+
+      return reply.status(200).send({ reviews });
+    }
+  });
+
+  typedApp.route({
+    method: "POST",
+    url: "/reviews",
+    schema: {
+      tags: ["Reviews"],
+      summary: "Cria avaliação",
+      description: "Registra avaliação e atualiza reputação automaticamente.",
+      body: createReviewBodySchema,
+      response: {
+        201: reviewSchema,
+        400: z.object({ error: z.string(), message: z.string() }),
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      try {
+        const review = await createReview({
+          reviewerId: context.user.id,
+          listingId: request.body.listingId,
+          rentalId: request.body.rentalId,
+          rating: request.body.rating,
+          comment: request.body.comment
+        });
+
+        writeAuditLog(request.log, {
+          action: "REVIEW_CREATED",
+          actorId: context.user.id,
+          entityType: "review",
+          entityId: review.id,
+          metadata: {
+            listingId: review.listingId,
+            rentalId: review.rentalId,
+            rating: review.rating
+          }
+        });
+
+        return reply.status(201).send({
+          ...review,
+          createdAt: review.createdAt.toISOString()
+        });
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
+    }
+  });
+}

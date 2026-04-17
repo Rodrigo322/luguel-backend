@@ -1,9 +1,1 @@
-node_modules
-dist
-.env
-.env.local
-coverage
-.DS_Store
-*.log
-
-.vercel
+frontend-admin-dashboard/
