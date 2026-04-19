@@ -12,6 +12,7 @@ Backend da plataforma universal de aluguel com DDD, Fastify, Prisma, Better Auth
 - [Referencia de API](./docs/API_REFERENCE.md)
 - [Seguranca](./docs/SECURITY.md)
 - [Testes](./docs/TESTS.md)
+- [Release Checklist](./docs/RELEASE_CHECKLIST.md)
 - [Guia para Frontend Mobile](./docs/MOBILE_INTEGRATION.md)
 
 ## Stack
@@ -91,6 +92,27 @@ Variaveis recomendadas na Vercel:
 
 - 44 arquivos de teste
 - 80 testes passando (`npm run test`)
+
+## Homologacao de Producao
+
+Script oficial (somente leitura):
+
+```bash
+SMOKE_BASE_URL=https://luguel-backend.vercel.app \
+SMOKE_ADMIN_EMAIL=admin@luguel.dev \
+SMOKE_ADMIN_PASSWORD='***' \
+npm run smoke:production
+```
+
+Script destrutivo controlado com limpeza automatica:
+
+```bash
+SMOKE_BASE_URL=https://luguel-backend.vercel.app \
+SMOKE_ADMIN_EMAIL=admin@luguel.dev \
+SMOKE_ADMIN_PASSWORD='***' \
+SMOKE_ALLOW_DESTRUCTIVE=true \
+npm run smoke:production:destructive
+```
 
 ## Licenca
 

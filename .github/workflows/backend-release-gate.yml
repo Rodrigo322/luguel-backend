@@ -1,0 +1,90 @@
+name: backend-release-gate
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-release-gate.yml"
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-release-gate.yml"
+  workflow_dispatch:
+    inputs:
+      smoke_mode:
+        description: "Modo da homologacao em producao"
+        required: true
+        default: readonly
+        type: choice
+        options:
+          - readonly
+          - destructive
+
+jobs:
+  backend-quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Tests
+        run: npm run test
+
+  backend-production-smoke:
+    runs-on: ubuntu-latest
+    needs: backend-quality
+    if: github.event_name != 'pull_request'
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+      SMOKE_ADMIN_EMAIL: ${{ secrets.SMOKE_ADMIN_EMAIL }}
+      SMOKE_ADMIN_PASSWORD: ${{ secrets.SMOKE_ADMIN_PASSWORD }}
+      SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+      SMOKE_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.smoke_mode || 'readonly' }}
+      SMOKE_ALLOW_DESTRUCTIVE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.smoke_mode == 'destructive' && 'true' || 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate smoke secrets
+        run: |
+          [ -n "$SMOKE_BASE_URL" ] || (echo "Missing secret: SMOKE_BASE_URL" && exit 1)
+          [ -n "$SMOKE_ADMIN_EMAIL" ] || (echo "Missing secret: SMOKE_ADMIN_EMAIL" && exit 1)
+          [ -n "$SMOKE_ADMIN_PASSWORD" ] || (echo "Missing secret: SMOKE_ADMIN_PASSWORD" && exit 1)
+
+      - name: Run production smoke
+        run: node scripts/homologation-production.cjs --mode="${SMOKE_MODE}"

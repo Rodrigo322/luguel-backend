@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node --watch --import tsx src/interfaces/http/server.ts",
     "build": "tsc -p tsconfig.build.json",
+    "smoke:production": "node scripts/homologation-production.cjs --mode=readonly",
+    "smoke:production:destructive": "node scripts/homologation-production.cjs --mode=destructive",
     "deploy:prepare": "node prisma/bootstrap-production.cjs",
     "vercel-build": "npm run deploy:prepare && npm run build",
     "start": "node dist/interfaces/http/server.js",

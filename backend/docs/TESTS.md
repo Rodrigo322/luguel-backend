@@ -43,6 +43,15 @@ Somente E2E:
 npm run test:e2e
 ```
 
+Homologacao de producao (read-only):
+
+```bash
+SMOKE_BASE_URL=https://luguel-backend.vercel.app \
+SMOKE_ADMIN_EMAIL=admin@luguel.dev \
+SMOKE_ADMIN_PASSWORD='***' \
+npm run smoke:production
+```
+
 ## Configuracao de Ambiente de Teste
 
 - Arquivo: `tests/setup-env.ts`

@@ -11,6 +11,7 @@ Este diretorio concentra a documentacao completa do backend.
 - [Referencia de API](./API_REFERENCE.md)
 - [Seguranca](./SECURITY.md)
 - [Testes](./TESTS.md)
+- [Release Checklist](./RELEASE_CHECKLIST.md)
 - [Guia para Frontend Mobile](./MOBILE_INTEGRATION.md)
 
 ## Swagger

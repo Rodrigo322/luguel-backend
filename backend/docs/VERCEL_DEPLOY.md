@@ -94,6 +94,30 @@ Valide autenticacao:
 - `POST /api/v1/auth/signin`
 - `GET /api/v1/auth/session`
 
+Execute homologacao automatizada:
+
+```bash
+SMOKE_BASE_URL=https://luguel-backend.vercel.app \
+SMOKE_ADMIN_EMAIL=admin@luguel.dev \
+SMOKE_ADMIN_PASSWORD='***' \
+npm run smoke:production
+```
+
+Para homologacao completa com escrita (cria/remove dados de teste):
+
+```bash
+SMOKE_BASE_URL=https://luguel-backend.vercel.app \
+SMOKE_ADMIN_EMAIL=admin@luguel.dev \
+SMOKE_ADMIN_PASSWORD='***' \
+SMOKE_ALLOW_DESTRUCTIVE=true \
+npm run smoke:production:destructive
+```
+
+Workflow de gate no GitHub Actions:
+
+- `.github/workflows/backend-release-gate.yml`
+- jobs: `backend-quality` + `backend-production-smoke`
+
 ## Observacoes
 
 - O modulo de recuperacao de senha no codigo atual usa callback em memoria para testes.
