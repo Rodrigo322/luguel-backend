@@ -33,7 +33,17 @@ describe("Swagger docs", () => {
     expect(response.body.paths["/api/v1/admin/reports/{reportId}/takedown"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/users/{userId}/ban"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/users/{userId}/role"]).toBeDefined();
+    expect(response.body.paths["/api/v1/admin/users/{userId}/identity-verification"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/listings/{listingId}/approve"]).toBeDefined();
     expect(response.body.paths["/api/v1/admin/listings/{listingId}/reject"]).toBeDefined();
+    expect(response.body.paths["/api/v1/users/me/identity-verification"]).toBeDefined();
+    expect(response.body.paths["/api/v1/users/me/premium"]).toBeDefined();
+    expect(response.body.paths["/api/v1/users/me/premium/subscribe"]).toBeDefined();
+    expect(response.body.paths["/api/v1/rentals/{rentalId}/payment"]).toBeDefined();
+    expect(response.body.paths["/api/v1/rentals/{rentalId}/payment/confirm"]).toBeDefined();
+    expect(response.body.paths["/api/v1/rentals/{rentalId}/contract"]).toBeDefined();
+    expect(response.body.paths["/api/v1/rentals/{rentalId}/contract/accept"]).toBeDefined();
+    expect(response.body.paths["/api/v1/rentals/{rentalId}/receipt"]).toBeDefined();
+    expect(response.body.paths["/api/v1/rentals/{rentalId}/chat/messages"]).toBeDefined();
   });
 });
