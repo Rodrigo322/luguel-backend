@@ -7,10 +7,20 @@ import type {
   ListingAvailabilityStatus
 } from "../../domain/listings/entities/listing-availability";
 import type { RentalStatus } from "../../domain/rentals/entities/rental";
+import type {
+  RentalFulfillmentMethod,
+  RentalPaymentMode,
+  RentalPaymentStatus
+} from "../../domain/rentals/entities/rental-payment";
 import type { ReportStatus } from "../../domain/reports/entities/report";
 import type { BoostStatus } from "../../domain/boost/entities/boost";
 import type { RiskLevel } from "../../domain/shared/risk/risk-level";
 import type { UserRole } from "../../shared/types/role";
+import type {
+  IdentityVerificationStatus,
+  PremiumSubscriptionStatus,
+  UserPlan
+} from "../../domain/users/entities/user-identity-verification";
 
 export interface StoredUser {
   id: string;
@@ -20,6 +30,10 @@ export interface StoredUser {
   isBanned: boolean;
   bannedAt?: Date;
   reputationScore: number;
+  identityVerificationStatus: IdentityVerificationStatus;
+  identityVerifiedAt?: Date;
+  plan: UserPlan;
+  planExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,7 +73,86 @@ export interface StoredRental {
   startDate: Date;
   endDate: Date;
   totalPrice: number;
+  fulfillmentMethod: RentalFulfillmentMethod;
+  deliveryAddress?: string;
+  platformFee: number;
+  depositAmount: number;
+  signalAmount: number;
+  remainderAmount: number;
   status: RentalStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StoredRentalPayment {
+  id: string;
+  rentalId: string;
+  mode: RentalPaymentMode;
+  status: RentalPaymentStatus;
+  totalAmount: number;
+  platformFeeAmount: number;
+  depositAmount: number;
+  signalAmount: number;
+  remainderAmount: number;
+  paidAmount: number;
+  inAppPaymentReference?: string;
+  proofUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StoredRentalContract {
+  id: string;
+  rentalId: string;
+  termsVersion: string;
+  contractText: string;
+  checksum: string;
+  acceptedByTenantAt?: Date;
+  acceptedByOwnerAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StoredRentalReceipt {
+  id: string;
+  rentalId: string;
+  receiptNumber: string;
+  issuedAt: Date;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+}
+
+export interface StoredRentalChatMessage {
+  id: string;
+  rentalId: string;
+  senderId: string;
+  message: string;
+  createdAt: Date;
+}
+
+export interface StoredUserIdentityVerification {
+  id: string;
+  userId: string;
+  documentType: string;
+  documentNumberHash: string;
+  fullName: string;
+  birthDate: Date;
+  status: IdentityVerificationStatus;
+  notes?: string;
+  submittedAt: Date;
+  reviewedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StoredPremiumSubscription {
+  id: string;
+  userId: string;
+  status: PremiumSubscriptionStatus;
+  amount: number;
+  months: number;
+  startsAt: Date;
+  endsAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -131,6 +224,26 @@ export interface PersistenceStore {
   banUser(userId: string): Promise<StoredUser | null>;
   deleteUserById(userId: string): Promise<boolean>;
   updateUserReputation(userId: string, rating: number): Promise<StoredUser | null>;
+  submitUserIdentityVerification(input: {
+    userId: string;
+    documentType: string;
+    documentNumberHash: string;
+    fullName: string;
+    birthDate: Date;
+  }): Promise<StoredUserIdentityVerification>;
+  getUserIdentityVerification(userId: string): Promise<StoredUserIdentityVerification | null>;
+  reviewUserIdentityVerification(input: {
+    userId: string;
+    status: IdentityVerificationStatus;
+    notes?: string;
+  }): Promise<StoredUserIdentityVerification | null>;
+  createPremiumSubscription(input: {
+    userId: string;
+    amount: number;
+    months: number;
+    status?: PremiumSubscriptionStatus;
+  }): Promise<StoredPremiumSubscription>;
+  getLatestPremiumSubscription(userId: string): Promise<StoredPremiumSubscription | null>;
 
   createListingRecord(input: {
     ownerId: string;
@@ -191,12 +304,65 @@ export interface PersistenceStore {
     startDate: Date;
     endDate: Date;
     totalPrice: number;
+    fulfillmentMethod?: RentalFulfillmentMethod;
+    deliveryAddress?: string;
+    platformFee?: number;
+    depositAmount?: number;
+    signalAmount?: number;
+    remainderAmount?: number;
     status: RentalStatus;
   }): Promise<StoredRental>;
   getRentalById(rentalId: string): Promise<StoredRental | null>;
   listRentalRecords(): Promise<StoredRental[]>;
   listRentalsByUser(userId: string): Promise<StoredRental[]>;
   updateRentalStatus(rentalId: string, status: RentalStatus): Promise<StoredRental | null>;
+  createRentalPaymentRecord(input: {
+    rentalId: string;
+    mode: RentalPaymentMode;
+    status?: RentalPaymentStatus;
+    totalAmount: number;
+    platformFeeAmount: number;
+    depositAmount: number;
+    signalAmount: number;
+    remainderAmount: number;
+    paidAmount?: number;
+    inAppPaymentReference?: string;
+    proofUrl?: string;
+  }): Promise<StoredRentalPayment>;
+  getRentalPaymentByRentalId(rentalId: string): Promise<StoredRentalPayment | null>;
+  updateRentalPaymentRecord(
+    rentalId: string,
+    input: Partial<{
+      status: RentalPaymentStatus;
+      paidAmount: number;
+      inAppPaymentReference: string;
+      proofUrl: string;
+    }>
+  ): Promise<StoredRentalPayment | null>;
+  createRentalContractRecord(input: {
+    rentalId: string;
+    termsVersion: string;
+    contractText: string;
+    checksum: string;
+  }): Promise<StoredRentalContract>;
+  getRentalContractByRentalId(rentalId: string): Promise<StoredRentalContract | null>;
+  acceptRentalContract(input: {
+    rentalId: string;
+    acceptedBy: "TENANT" | "OWNER";
+  }): Promise<StoredRentalContract | null>;
+  createRentalReceiptRecord(input: {
+    rentalId: string;
+    receiptNumber: string;
+    issuedAt: Date;
+    payload: Record<string, unknown>;
+  }): Promise<StoredRentalReceipt>;
+  getRentalReceiptByRentalId(rentalId: string): Promise<StoredRentalReceipt | null>;
+  createRentalChatMessage(input: {
+    rentalId: string;
+    senderId: string;
+    message: string;
+  }): Promise<StoredRentalChatMessage>;
+  listRentalChatMessages(rentalId: string): Promise<StoredRentalChatMessage[]>;
 
   findReviewByRentalAndReviewer(rentalId: string, reviewerId: string): Promise<StoredReview | null>;
   listReviewRecords(): Promise<StoredReview[]>;

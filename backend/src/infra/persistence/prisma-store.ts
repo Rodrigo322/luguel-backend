@@ -5,12 +5,18 @@ import type {
   PersistenceStore,
   StoredAdminAuditLog,
   StoredBoost,
+  StoredPremiumSubscription,
   StoredListingAvailabilitySlot,
   StoredListing,
+  StoredRentalChatMessage,
+  StoredRentalContract,
+  StoredRentalPayment,
+  StoredRentalReceipt,
   StoredRental,
   StoredReport,
   StoredReview,
   StoredRiskAssessment,
+  StoredUserIdentityVerification,
   StoredUser
 } from "./store-types";
 
@@ -40,6 +46,10 @@ function toStoredUser(user: {
   isBanned: boolean;
   bannedAt: Date | null;
   reputationScore: number;
+  identityVerificationStatus: StoredUser["identityVerificationStatus"];
+  identityVerifiedAt: Date | null;
+  plan: StoredUser["plan"];
+  planExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }): StoredUser {
@@ -51,6 +61,10 @@ function toStoredUser(user: {
     isBanned: user.isBanned,
     bannedAt: user.bannedAt ?? undefined,
     reputationScore: user.reputationScore,
+    identityVerificationStatus: user.identityVerificationStatus,
+    identityVerifiedAt: user.identityVerifiedAt ?? undefined,
+    plan: user.plan,
+    planExpiresAt: user.planExpiresAt ?? undefined,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
@@ -119,6 +133,12 @@ function toStoredRental(rental: {
   startDate: Date;
   endDate: Date;
   totalPrice: unknown;
+  fulfillmentMethod: StoredRental["fulfillmentMethod"];
+  deliveryAddress: string | null;
+  platformFee: unknown;
+  depositAmount: unknown;
+  signalAmount: unknown;
+  remainderAmount: unknown;
   status: StoredRental["status"];
   createdAt: Date;
   updatedAt: Date;
@@ -130,9 +150,161 @@ function toStoredRental(rental: {
     startDate: rental.startDate,
     endDate: rental.endDate,
     totalPrice: toNumber(rental.totalPrice),
+    fulfillmentMethod: rental.fulfillmentMethod,
+    deliveryAddress: rental.deliveryAddress ?? undefined,
+    platformFee: toNumber(rental.platformFee),
+    depositAmount: toNumber(rental.depositAmount),
+    signalAmount: toNumber(rental.signalAmount),
+    remainderAmount: toNumber(rental.remainderAmount),
     status: rental.status,
     createdAt: rental.createdAt,
     updatedAt: rental.updatedAt
+  };
+}
+
+function toStoredRentalPayment(payment: {
+  id: string;
+  rentalId: string;
+  mode: StoredRentalPayment["mode"];
+  status: StoredRentalPayment["status"];
+  totalAmount: unknown;
+  platformFeeAmount: unknown;
+  depositAmount: unknown;
+  signalAmount: unknown;
+  remainderAmount: unknown;
+  paidAmount: unknown;
+  inAppPaymentReference: string | null;
+  proofUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): StoredRentalPayment {
+  return {
+    id: payment.id,
+    rentalId: payment.rentalId,
+    mode: payment.mode,
+    status: payment.status,
+    totalAmount: toNumber(payment.totalAmount),
+    platformFeeAmount: toNumber(payment.platformFeeAmount),
+    depositAmount: toNumber(payment.depositAmount),
+    signalAmount: toNumber(payment.signalAmount),
+    remainderAmount: toNumber(payment.remainderAmount),
+    paidAmount: toNumber(payment.paidAmount),
+    inAppPaymentReference: payment.inAppPaymentReference ?? undefined,
+    proofUrl: payment.proofUrl ?? undefined,
+    createdAt: payment.createdAt,
+    updatedAt: payment.updatedAt
+  };
+}
+
+function toStoredRentalContract(contract: {
+  id: string;
+  rentalId: string;
+  termsVersion: string;
+  contractText: string;
+  checksum: string;
+  acceptedByTenantAt: Date | null;
+  acceptedByOwnerAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): StoredRentalContract {
+  return {
+    id: contract.id,
+    rentalId: contract.rentalId,
+    termsVersion: contract.termsVersion,
+    contractText: contract.contractText,
+    checksum: contract.checksum,
+    acceptedByTenantAt: contract.acceptedByTenantAt ?? undefined,
+    acceptedByOwnerAt: contract.acceptedByOwnerAt ?? undefined,
+    createdAt: contract.createdAt,
+    updatedAt: contract.updatedAt
+  };
+}
+
+function toStoredRentalReceipt(receipt: {
+  id: string;
+  rentalId: string;
+  receiptNumber: string;
+  issuedAt: Date;
+  payload: Prisma.JsonValue;
+  createdAt: Date;
+}): StoredRentalReceipt {
+  return {
+    id: receipt.id,
+    rentalId: receipt.rentalId,
+    receiptNumber: receipt.receiptNumber,
+    issuedAt: receipt.issuedAt,
+    payload: (receipt.payload as Record<string, unknown>) ?? {},
+    createdAt: receipt.createdAt
+  };
+}
+
+function toStoredRentalChatMessage(message: {
+  id: string;
+  rentalId: string;
+  senderId: string;
+  message: string;
+  createdAt: Date;
+}): StoredRentalChatMessage {
+  return {
+    id: message.id,
+    rentalId: message.rentalId,
+    senderId: message.senderId,
+    message: message.message,
+    createdAt: message.createdAt
+  };
+}
+
+function toStoredUserIdentityVerification(verification: {
+  id: string;
+  userId: string;
+  documentType: string;
+  documentNumberHash: string;
+  fullName: string;
+  birthDate: Date;
+  status: StoredUserIdentityVerification["status"];
+  notes: string | null;
+  submittedAt: Date;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): StoredUserIdentityVerification {
+  return {
+    id: verification.id,
+    userId: verification.userId,
+    documentType: verification.documentType,
+    documentNumberHash: verification.documentNumberHash,
+    fullName: verification.fullName,
+    birthDate: verification.birthDate,
+    status: verification.status,
+    notes: verification.notes ?? undefined,
+    submittedAt: verification.submittedAt,
+    reviewedAt: verification.reviewedAt ?? undefined,
+    createdAt: verification.createdAt,
+    updatedAt: verification.updatedAt
+  };
+}
+
+function toStoredPremiumSubscription(subscription: {
+  id: string;
+  userId: string;
+  status: StoredPremiumSubscription["status"];
+  amount: unknown;
+  months: number;
+  startsAt: Date;
+  endsAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}): StoredPremiumSubscription {
+  return {
+    id: subscription.id,
+    userId: subscription.userId,
+    status: subscription.status,
+    amount: toNumber(subscription.amount),
+    months: subscription.months,
+    startsAt: subscription.startsAt,
+    endsAt: subscription.endsAt,
+    createdAt: subscription.createdAt,
+    updatedAt: subscription.updatedAt
   };
 }
 
@@ -290,6 +462,137 @@ async function updateUserReputation(userId: string, rating: number): Promise<Sto
   });
 
   return toStoredUser(updated);
+}
+
+async function submitUserIdentityVerification(input: {
+  userId: string;
+  documentType: string;
+  documentNumberHash: string;
+  fullName: string;
+  birthDate: Date;
+}): Promise<StoredUserIdentityVerification> {
+  const verification = await prisma.$transaction(async (tx) => {
+    const upserted = await tx.userIdentityVerification.upsert({
+      where: { userId: input.userId },
+      update: {
+        documentType: input.documentType,
+        documentNumberHash: input.documentNumberHash,
+        fullName: input.fullName,
+        birthDate: input.birthDate,
+        status: "PENDING",
+        notes: null,
+        submittedAt: new Date(),
+        reviewedAt: null
+      },
+      create: {
+        userId: input.userId,
+        documentType: input.documentType,
+        documentNumberHash: input.documentNumberHash,
+        fullName: input.fullName,
+        birthDate: input.birthDate,
+        status: "PENDING"
+      }
+    });
+
+    await tx.user.update({
+      where: { id: input.userId },
+      data: {
+        identityVerificationStatus: "PENDING",
+        identityVerifiedAt: null
+      }
+    });
+
+    return upserted;
+  });
+
+  return toStoredUserIdentityVerification(verification);
+}
+
+async function getUserIdentityVerification(userId: string): Promise<StoredUserIdentityVerification | null> {
+  const verification = await prisma.userIdentityVerification.findUnique({
+    where: { userId }
+  });
+
+  return verification ? toStoredUserIdentityVerification(verification) : null;
+}
+
+async function reviewUserIdentityVerification(input: {
+  userId: string;
+  status: StoredUser["identityVerificationStatus"];
+  notes?: string;
+}): Promise<StoredUserIdentityVerification | null> {
+  const reviewed = await prisma.$transaction(async (tx) => {
+    const updatedVerification = await tx.userIdentityVerification.update({
+      where: { userId: input.userId },
+      data: {
+        status: input.status,
+        notes: input.notes,
+        reviewedAt: new Date()
+      }
+    }).catch(() => null);
+
+    if (!updatedVerification) {
+      return null;
+    }
+
+    await tx.user.update({
+      where: { id: input.userId },
+      data: {
+        identityVerificationStatus: input.status,
+        identityVerifiedAt: input.status === "VERIFIED" ? new Date() : null
+      }
+    });
+
+    return updatedVerification;
+  });
+
+  return reviewed ? toStoredUserIdentityVerification(reviewed) : null;
+}
+
+async function createPremiumSubscription(input: {
+  userId: string;
+  amount: number;
+  months: number;
+  status?: StoredPremiumSubscription["status"];
+}): Promise<StoredPremiumSubscription> {
+  const now = new Date();
+  const endsAt = new Date(now.getTime());
+  endsAt.setMonth(endsAt.getMonth() + input.months);
+  const status = input.status ?? "ACTIVE";
+
+  const subscription = await prisma.$transaction(async (tx) => {
+    const created = await tx.premiumSubscription.create({
+      data: {
+        userId: input.userId,
+        status,
+        amount: input.amount,
+        months: input.months,
+        startsAt: now,
+        endsAt
+      }
+    });
+
+    await tx.user.update({
+      where: { id: input.userId },
+      data: {
+        plan: status === "ACTIVE" ? "PREMIUM" : "FREE",
+        planExpiresAt: status === "ACTIVE" ? endsAt : null
+      }
+    });
+
+    return created;
+  });
+
+  return toStoredPremiumSubscription(subscription);
+}
+
+async function getLatestPremiumSubscription(userId: string): Promise<StoredPremiumSubscription | null> {
+  const subscription = await prisma.premiumSubscription.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" }
+  });
+
+  return subscription ? toStoredPremiumSubscription(subscription) : null;
 }
 
 async function createListingRecord(input: {
@@ -483,6 +786,12 @@ async function createRentalRecord(input: {
   startDate: Date;
   endDate: Date;
   totalPrice: number;
+  fulfillmentMethod?: StoredRental["fulfillmentMethod"];
+  deliveryAddress?: string;
+  platformFee?: number;
+  depositAmount?: number;
+  signalAmount?: number;
+  remainderAmount?: number;
   status: StoredRental["status"];
 }): Promise<StoredRental> {
   const rental = await prisma.rental.create({
@@ -492,6 +801,12 @@ async function createRentalRecord(input: {
       startDate: input.startDate,
       endDate: input.endDate,
       totalPrice: input.totalPrice,
+      fulfillmentMethod: input.fulfillmentMethod ?? "PICKUP_LOCAL",
+      deliveryAddress: input.deliveryAddress,
+      platformFee: input.platformFee ?? 0,
+      depositAmount: input.depositAmount ?? 0,
+      signalAmount: input.signalAmount ?? 0,
+      remainderAmount: input.remainderAmount ?? 0,
       status: input.status
     }
   });
@@ -540,6 +855,187 @@ async function updateRentalStatus(
   }).catch(() => null);
 
   return rental ? toStoredRental(rental) : null;
+}
+
+async function createRentalPaymentRecord(input: {
+  rentalId: string;
+  mode: StoredRentalPayment["mode"];
+  status?: StoredRentalPayment["status"];
+  totalAmount: number;
+  platformFeeAmount: number;
+  depositAmount: number;
+  signalAmount: number;
+  remainderAmount: number;
+  paidAmount?: number;
+  inAppPaymentReference?: string;
+  proofUrl?: string;
+}): Promise<StoredRentalPayment> {
+  const payment = await prisma.rentalPayment.upsert({
+    where: { rentalId: input.rentalId },
+    update: {
+      mode: input.mode,
+      status: input.status ?? "PENDING",
+      totalAmount: input.totalAmount,
+      platformFeeAmount: input.platformFeeAmount,
+      depositAmount: input.depositAmount,
+      signalAmount: input.signalAmount,
+      remainderAmount: input.remainderAmount,
+      paidAmount: input.paidAmount ?? 0,
+      inAppPaymentReference: input.inAppPaymentReference,
+      proofUrl: input.proofUrl
+    },
+    create: {
+      rentalId: input.rentalId,
+      mode: input.mode,
+      status: input.status ?? "PENDING",
+      totalAmount: input.totalAmount,
+      platformFeeAmount: input.platformFeeAmount,
+      depositAmount: input.depositAmount,
+      signalAmount: input.signalAmount,
+      remainderAmount: input.remainderAmount,
+      paidAmount: input.paidAmount ?? 0,
+      inAppPaymentReference: input.inAppPaymentReference,
+      proofUrl: input.proofUrl
+    }
+  });
+
+  return toStoredRentalPayment(payment);
+}
+
+async function getRentalPaymentByRentalId(rentalId: string): Promise<StoredRentalPayment | null> {
+  const payment = await prisma.rentalPayment.findUnique({
+    where: { rentalId }
+  });
+
+  return payment ? toStoredRentalPayment(payment) : null;
+}
+
+async function updateRentalPaymentRecord(
+  rentalId: string,
+  input: Partial<{
+    status: StoredRentalPayment["status"];
+    paidAmount: number;
+    inAppPaymentReference: string;
+    proofUrl: string;
+  }>
+): Promise<StoredRentalPayment | null> {
+  const payment = await prisma.rentalPayment.update({
+    where: { rentalId },
+    data: {
+      status: input.status,
+      paidAmount: input.paidAmount,
+      inAppPaymentReference: input.inAppPaymentReference,
+      proofUrl: input.proofUrl
+    }
+  }).catch(() => null);
+
+  return payment ? toStoredRentalPayment(payment) : null;
+}
+
+async function createRentalContractRecord(input: {
+  rentalId: string;
+  termsVersion: string;
+  contractText: string;
+  checksum: string;
+}): Promise<StoredRentalContract> {
+  const contract = await prisma.rentalContract.upsert({
+    where: { rentalId: input.rentalId },
+    update: {
+      termsVersion: input.termsVersion,
+      contractText: input.contractText,
+      checksum: input.checksum,
+      acceptedByOwnerAt: null,
+      acceptedByTenantAt: null
+    },
+    create: {
+      rentalId: input.rentalId,
+      termsVersion: input.termsVersion,
+      contractText: input.contractText,
+      checksum: input.checksum
+    }
+  });
+
+  return toStoredRentalContract(contract);
+}
+
+async function getRentalContractByRentalId(rentalId: string): Promise<StoredRentalContract | null> {
+  const contract = await prisma.rentalContract.findUnique({
+    where: { rentalId }
+  });
+
+  return contract ? toStoredRentalContract(contract) : null;
+}
+
+async function acceptRentalContract(input: {
+  rentalId: string;
+  acceptedBy: "TENANT" | "OWNER";
+}): Promise<StoredRentalContract | null> {
+  const contract = await prisma.rentalContract.update({
+    where: { rentalId: input.rentalId },
+    data:
+      input.acceptedBy === "TENANT"
+        ? { acceptedByTenantAt: new Date() }
+        : { acceptedByOwnerAt: new Date() }
+  }).catch(() => null);
+
+  return contract ? toStoredRentalContract(contract) : null;
+}
+
+async function createRentalReceiptRecord(input: {
+  rentalId: string;
+  receiptNumber: string;
+  issuedAt: Date;
+  payload: Record<string, unknown>;
+}): Promise<StoredRentalReceipt> {
+  const receipt = await prisma.rentalReceipt.upsert({
+    where: { rentalId: input.rentalId },
+    update: {
+      receiptNumber: input.receiptNumber,
+      issuedAt: input.issuedAt,
+      payload: input.payload as Prisma.InputJsonValue
+    },
+    create: {
+      rentalId: input.rentalId,
+      receiptNumber: input.receiptNumber,
+      issuedAt: input.issuedAt,
+      payload: input.payload as Prisma.InputJsonValue
+    }
+  });
+
+  return toStoredRentalReceipt(receipt);
+}
+
+async function getRentalReceiptByRentalId(rentalId: string): Promise<StoredRentalReceipt | null> {
+  const receipt = await prisma.rentalReceipt.findUnique({
+    where: { rentalId }
+  });
+
+  return receipt ? toStoredRentalReceipt(receipt) : null;
+}
+
+async function createRentalChatMessage(input: {
+  rentalId: string;
+  senderId: string;
+  message: string;
+}): Promise<StoredRentalChatMessage> {
+  const chat = await prisma.rentalChatMessage.create({
+    data: {
+      rentalId: input.rentalId,
+      senderId: input.senderId,
+      message: input.message
+    }
+  });
+
+  return toStoredRentalChatMessage(chat);
+}
+
+async function listRentalChatMessages(rentalId: string): Promise<StoredRentalChatMessage[]> {
+  const chatMessages = await prisma.rentalChatMessage.findMany({
+    where: { rentalId },
+    orderBy: { createdAt: "asc" }
+  });
+
+  return chatMessages.map(toStoredRentalChatMessage);
 }
 
 async function findReviewByRentalAndReviewer(
@@ -755,6 +1251,11 @@ export const prismaStore: PersistenceStore = {
   banUser,
   deleteUserById,
   updateUserReputation,
+  submitUserIdentityVerification,
+  getUserIdentityVerification,
+  reviewUserIdentityVerification,
+  createPremiumSubscription,
+  getLatestPremiumSubscription,
   createListingRecord,
   listListingRecords,
   listListingsByOwner,
@@ -770,6 +1271,16 @@ export const prismaStore: PersistenceStore = {
   listRentalRecords,
   listRentalsByUser,
   updateRentalStatus,
+  createRentalPaymentRecord,
+  getRentalPaymentByRentalId,
+  updateRentalPaymentRecord,
+  createRentalContractRecord,
+  getRentalContractByRentalId,
+  acceptRentalContract,
+  createRentalReceiptRecord,
+  getRentalReceiptByRentalId,
+  createRentalChatMessage,
+  listRentalChatMessages,
   findReviewByRentalAndReviewer,
   listReviewRecords,
   createReviewRecord,

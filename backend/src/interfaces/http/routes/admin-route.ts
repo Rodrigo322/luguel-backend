@@ -8,6 +8,7 @@ import { getAdminMetrics } from "../../../application/admin/get-admin-metrics";
 import { listCriticalReports } from "../../../application/admin/list-critical-reports";
 import { listReports } from "../../../application/admin/list-reports";
 import { rejectListingByAdmin } from "../../../application/admin/reject-listing";
+import { reviewUserIdentityVerificationByAdmin } from "../../../application/admin/review-user-identity-verification";
 import { reviewReport } from "../../../application/admin/review-report";
 import { suspendCriticalListing } from "../../../application/admin/suspend-critical-listing";
 import { takeDownReportContent } from "../../../application/admin/take-down-report-content";
@@ -52,6 +53,10 @@ const userSchema = z.object({
   isBanned: z.boolean(),
   bannedAt: z.string().datetime().optional(),
   reputationScore: z.number().int().nonnegative(),
+  identityVerificationStatus: z.enum(["PENDING", "VERIFIED", "REJECTED"]),
+  identityVerifiedAt: z.string().datetime().optional(),
+  plan: z.enum(["FREE", "PREMIUM"]),
+  planExpiresAt: z.string().datetime().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 });
@@ -95,7 +100,10 @@ const adminMetricsSchema = z.object({
   highRiskListings: z.number().int().nonnegative(),
   pendingListings: z.number().int().nonnegative(),
   activeBoosts: z.number().int().nonnegative(),
-  bannedUsers: z.number().int().nonnegative()
+  bannedUsers: z.number().int().nonnegative(),
+  verifiedUsers: z.number().int().nonnegative(),
+  premiumAdvertisers: z.number().int().nonnegative(),
+  totalCommissionRevenue: z.number().nonnegative()
 });
 
 function serializeReport(report: {
@@ -161,12 +169,18 @@ function serializeUser(user: {
   isBanned: boolean;
   bannedAt?: Date;
   reputationScore: number;
+  identityVerificationStatus: "PENDING" | "VERIFIED" | "REJECTED";
+  identityVerifiedAt?: Date;
+  plan: "FREE" | "PREMIUM";
+  planExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }) {
   return {
     ...user,
     bannedAt: user.bannedAt?.toISOString(),
+    identityVerifiedAt: user.identityVerifiedAt?.toISOString(),
+    planExpiresAt: user.planExpiresAt?.toISOString(),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString()
   };
@@ -548,6 +562,87 @@ export async function adminRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         });
 
         return reply.status(200).send(serializeUser(updatedUser));
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
+    }
+  });
+
+  typedApp.route({
+    method: "PATCH",
+    url: "/admin/users/:userId/identity-verification",
+    schema: {
+      tags: ["Admin"],
+      summary: "Revisa verificacao de identidade",
+      description: "Permite ao admin aprovar ou rejeitar verificacao de identidade de usuarios.",
+      params: z.object({
+        userId: z.string().min(1)
+      }),
+      body: z.object({
+        status: z.enum(["VERIFIED", "REJECTED"]),
+        notes: z.string().min(4).max(500).optional()
+      }),
+      response: {
+        200: z.object({
+          id: z.string(),
+          userId: z.string(),
+          documentType: z.string(),
+          fullName: z.string(),
+          status: z.enum(["PENDING", "VERIFIED", "REJECTED"]),
+          notes: z.string().optional(),
+          submittedAt: z.string().datetime(),
+          reviewedAt: z.string().datetime().optional(),
+          createdAt: z.string().datetime(),
+          updatedAt: z.string().datetime()
+        }),
+        400: z.object({ error: z.string(), message: z.string() }),
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() }),
+        404: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      if (!requireRoles(context, ["ADMIN"], reply)) {
+        return;
+      }
+
+      try {
+        const reviewed = await reviewUserIdentityVerificationByAdmin({
+          adminId: context.user.id,
+          userId: request.params.userId,
+          status: request.body.status,
+          notes: request.body.notes
+        });
+
+        writeAuditLog(request.log, {
+          action: "ADMIN_USER_IDENTITY_REVIEWED",
+          actorId: context.user.id,
+          entityType: "identity-verification",
+          entityId: reviewed.id,
+          metadata: {
+            userId: reviewed.userId,
+            status: reviewed.status
+          }
+        });
+
+        return reply.status(200).send({
+          id: reviewed.id,
+          userId: reviewed.userId,
+          documentType: reviewed.documentType,
+          fullName: reviewed.fullName,
+          status: reviewed.status,
+          notes: reviewed.notes,
+          submittedAt: reviewed.submittedAt.toISOString(),
+          reviewedAt: reviewed.reviewedAt?.toISOString(),
+          createdAt: reviewed.createdAt.toISOString(),
+          updatedAt: reviewed.updatedAt.toISOString()
+        });
       } catch (error) {
         handleDomainError(reply, error);
       }

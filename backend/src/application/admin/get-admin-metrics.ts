@@ -1,4 +1,5 @@
 import {
+  getRentalPaymentByRentalId,
   listBoostRecords,
   listListingRecords,
   listRentalRecords,
@@ -16,6 +17,9 @@ export interface AdminMetrics {
   pendingListings: number;
   activeBoosts: number;
   bannedUsers: number;
+  verifiedUsers: number;
+  premiumAdvertisers: number;
+  totalCommissionRevenue: number;
 }
 
 export async function getAdminMetrics(): Promise<AdminMetrics> {
@@ -26,6 +30,23 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
     listReportRecords(),
     listBoostRecords()
   ]);
+
+  const payments = await Promise.all(rentals.map((rental) => getRentalPaymentByRentalId(rental.id)));
+  const totalCommissionRevenue = payments.reduce((total, payment) => {
+    if (!payment) {
+      return total;
+    }
+
+    if (payment.status === "PAID") {
+      return total + payment.platformFeeAmount;
+    }
+
+    if (payment.status === "PARTIALLY_PAID" && payment.totalAmount > 0) {
+      return total + payment.platformFeeAmount * Math.min(1, payment.paidAmount / payment.totalAmount);
+    }
+
+    return total;
+  }, 0);
 
   return {
     totalUsers: users.length,
@@ -39,6 +60,9 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
     ).length,
     pendingListings: listings.filter((listing) => listing.status === "PENDING_VALIDATION").length,
     activeBoosts: boosts.filter((boost) => boost.status === "ACTIVE").length,
-    bannedUsers: users.filter((user) => user.isBanned).length
+    bannedUsers: users.filter((user) => user.isBanned).length,
+    verifiedUsers: users.filter((user) => user.identityVerificationStatus === "VERIFIED").length,
+    premiumAdvertisers: users.filter((user) => user.role === "LOCADOR" && user.plan === "PREMIUM").length,
+    totalCommissionRevenue: Math.round((totalCommissionRevenue + Number.EPSILON) * 100) / 100
   };
 }

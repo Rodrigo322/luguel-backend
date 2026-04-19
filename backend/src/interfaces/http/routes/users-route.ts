@@ -3,9 +3,17 @@ import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { deleteCurrentUser } from "../../../application/users/delete-current-user";
 import { listUsersFlow } from "../../../application/users/list-users";
+import {
+  getPremiumStatusFlow,
+  subscribePremiumFlow
+} from "../../../application/users/subscribe-premium";
+import { submitIdentityVerificationFlow } from "../../../application/users/submit-identity-verification";
 import { updateCurrentUserProfile } from "../../../application/users/update-user-profile";
 import { writeAuditLog } from "../../../infra/logging/audit-logger";
-import { getUserById, updateUserRole } from "../../../infra/persistence/in-memory-store";
+import {
+  getUserById,
+  updateUserRole
+} from "../../../infra/persistence/in-memory-store";
 import { requireAuth, requireRoles } from "../auth/guards";
 import type { AppAuth } from "../auth/create-auth";
 import { loadBetterAuthNode } from "../auth/load-better-auth-node";
@@ -19,6 +27,10 @@ const userProfileSchema = z.object({
   isBanned: z.boolean(),
   bannedAt: z.string().datetime().optional(),
   reputationScore: z.number().int().nonnegative(),
+  identityVerificationStatus: z.enum(["PENDING", "VERIFIED", "REJECTED"]),
+  identityVerifiedAt: z.string().datetime().optional(),
+  plan: z.enum(["FREE", "PREMIUM"]),
+  planExpiresAt: z.string().datetime().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 });
@@ -30,7 +42,11 @@ const userSelfSchema = z.object({
   role: z.enum(["LOCADOR", "LOCATARIO", "ADMIN"]),
   isBanned: z.boolean(),
   bannedAt: z.string().datetime().optional(),
-  reputationScore: z.number().int().nonnegative()
+  reputationScore: z.number().int().nonnegative(),
+  identityVerificationStatus: z.enum(["PENDING", "VERIFIED", "REJECTED"]),
+  identityVerifiedAt: z.string().datetime().optional(),
+  plan: z.enum(["FREE", "PREMIUM"]),
+  planExpiresAt: z.string().datetime().optional()
 });
 
 const updateRoleBodySchema = z.object({
@@ -39,6 +55,49 @@ const updateRoleBodySchema = z.object({
 
 const updateProfileBodySchema = z.object({
   name: z.string().min(2).max(120)
+});
+
+const submitIdentityVerificationBodySchema = z.object({
+  documentType: z.enum(["CPF", "CNPJ", "RG", "CNH", "PASSPORT"]),
+  documentNumber: z.string().min(5).max(40),
+  fullName: z.string().min(5).max(180),
+  birthDate: z.string().datetime()
+});
+
+const identityVerificationSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  documentType: z.string(),
+  fullName: z.string(),
+  status: z.enum(["PENDING", "VERIFIED", "REJECTED"]),
+  notes: z.string().optional(),
+  submittedAt: z.string().datetime(),
+  reviewedAt: z.string().datetime().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+});
+
+const premiumSubscribeBodySchema = z.object({
+  months: z.number().int().min(1).max(12),
+  amount: z.number().positive(),
+  paymentConfirmed: z.boolean()
+});
+
+const premiumStatusSchema = z.object({
+  plan: z.enum(["FREE", "PREMIUM"]),
+  planExpiresAt: z.string().datetime().optional(),
+  subscription: z
+    .object({
+      id: z.string(),
+      status: z.enum(["ACTIVE", "CANCELED", "EXPIRED"]),
+      amount: z.number(),
+      months: z.number().int(),
+      startsAt: z.string().datetime(),
+      endsAt: z.string().datetime(),
+      createdAt: z.string().datetime(),
+      updatedAt: z.string().datetime()
+    })
+    .nullable()
 });
 
 export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<void> {
@@ -78,7 +137,11 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         role: context.user.role,
         isBanned: context.user.isBanned,
         bannedAt: context.user.bannedAt?.toISOString(),
-        reputationScore: context.user.reputationScore
+        reputationScore: context.user.reputationScore,
+        identityVerificationStatus: context.user.identityVerificationStatus,
+        identityVerifiedAt: context.user.identityVerifiedAt?.toISOString(),
+        plan: context.user.plan,
+        planExpiresAt: context.user.planExpiresAt?.toISOString()
       });
     }
   });
@@ -112,6 +175,8 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
       const users = (await listUsersFlow()).map((user) => ({
         ...user,
         bannedAt: user.bannedAt?.toISOString(),
+        identityVerifiedAt: user.identityVerifiedAt?.toISOString(),
+        planExpiresAt: user.planExpiresAt?.toISOString(),
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()
       }));
@@ -177,6 +242,8 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
       return reply.status(200).send({
         ...user,
         bannedAt: user.bannedAt?.toISOString(),
+        identityVerifiedAt: user.identityVerifiedAt?.toISOString(),
+        planExpiresAt: user.planExpiresAt?.toISOString(),
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()
       });
@@ -225,7 +292,11 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
           role: updatedUser.role,
           isBanned: updatedUser.isBanned,
           bannedAt: updatedUser.bannedAt?.toISOString(),
-          reputationScore: updatedUser.reputationScore
+          reputationScore: updatedUser.reputationScore,
+          identityVerificationStatus: updatedUser.identityVerificationStatus,
+          identityVerifiedAt: updatedUser.identityVerifiedAt?.toISOString(),
+          plan: updatedUser.plan,
+          planExpiresAt: updatedUser.planExpiresAt?.toISOString()
         });
       } catch (error) {
         handleDomainError(reply, error);
@@ -280,8 +351,183 @@ export async function usersRoute(app: FastifyInstance, auth: AppAuth): Promise<v
         role: updatedUser.role,
         isBanned: updatedUser.isBanned,
         bannedAt: updatedUser.bannedAt?.toISOString(),
-        reputationScore: updatedUser.reputationScore
+        reputationScore: updatedUser.reputationScore,
+        identityVerificationStatus: updatedUser.identityVerificationStatus,
+        identityVerifiedAt: updatedUser.identityVerifiedAt?.toISOString(),
+        plan: updatedUser.plan,
+        planExpiresAt: updatedUser.planExpiresAt?.toISOString()
       });
+    }
+  });
+
+  typedApp.route({
+    method: "POST",
+    url: "/users/me/identity-verification",
+    schema: {
+      tags: ["Users"],
+      summary: "Envia verificacao de identidade",
+      description: "Submete dados de documento para verificacao de identidade (KYC simplificado).",
+      body: submitIdentityVerificationBodySchema,
+      response: {
+        200: identityVerificationSchema,
+        400: z.object({ error: z.string(), message: z.string() }),
+        401: z.object({ error: z.string(), message: z.string() }),
+        404: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      try {
+        const verification = await submitIdentityVerificationFlow({
+          requesterId: context.user.id,
+          documentType: request.body.documentType,
+          documentNumber: request.body.documentNumber,
+          fullName: request.body.fullName,
+          birthDate: new Date(request.body.birthDate)
+        });
+
+        writeAuditLog(request.log, {
+          action: "USER_IDENTITY_VERIFICATION_SUBMITTED",
+          actorId: context.user.id,
+          entityType: "identity-verification",
+          entityId: verification.id,
+          metadata: {
+            documentType: verification.documentType,
+            status: verification.status
+          }
+        });
+
+        return reply.status(200).send({
+          id: verification.id,
+          userId: verification.userId,
+          documentType: verification.documentType,
+          fullName: verification.fullName,
+          status: verification.status,
+          notes: verification.notes,
+          submittedAt: verification.submittedAt.toISOString(),
+          reviewedAt: verification.reviewedAt?.toISOString(),
+          createdAt: verification.createdAt.toISOString(),
+          updatedAt: verification.updatedAt.toISOString()
+        });
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
+    }
+  });
+
+  typedApp.route({
+    method: "GET",
+    url: "/users/me/premium",
+    schema: {
+      tags: ["Users"],
+      summary: "Consulta plano premium",
+      description: "Retorna status atual do plano premium para anunciantes.",
+      response: {
+        200: premiumStatusSchema,
+        401: z.object({ error: z.string(), message: z.string() }),
+        404: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      try {
+        const premium = await getPremiumStatusFlow(context.user.id);
+
+        return reply.status(200).send({
+          plan: premium.plan,
+          planExpiresAt: premium.planExpiresAt?.toISOString(),
+          subscription: premium.subscription
+            ? {
+                id: premium.subscription.id,
+                status: premium.subscription.status,
+                amount: premium.subscription.amount,
+                months: premium.subscription.months,
+                startsAt: premium.subscription.startsAt.toISOString(),
+                endsAt: premium.subscription.endsAt.toISOString(),
+                createdAt: premium.subscription.createdAt.toISOString(),
+                updatedAt: premium.subscription.updatedAt.toISOString()
+              }
+            : null
+        });
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
+    }
+  });
+
+  typedApp.route({
+    method: "POST",
+    url: "/users/me/premium/subscribe",
+    schema: {
+      tags: ["Users"],
+      summary: "Assina plano premium",
+      description: "Ativa plano premium para anunciantes, usado no modelo de negocio da plataforma.",
+      body: premiumSubscribeBodySchema,
+      response: {
+        201: premiumStatusSchema,
+        400: z.object({ error: z.string(), message: z.string() }),
+        401: z.object({ error: z.string(), message: z.string() }),
+        403: z.object({ error: z.string(), message: z.string() }),
+        404: z.object({ error: z.string(), message: z.string() })
+      }
+    },
+    handler: async (request, reply) => {
+      const context = await requireAuth(auth, request, reply);
+
+      if (!context) {
+        return;
+      }
+
+      try {
+        await subscribePremiumFlow({
+          requesterId: context.user.id,
+          months: request.body.months,
+          amount: request.body.amount,
+          paymentConfirmed: request.body.paymentConfirmed
+        });
+
+        const premium = await getPremiumStatusFlow(context.user.id);
+
+        writeAuditLog(request.log, {
+          action: "USER_PREMIUM_SUBSCRIBED",
+          actorId: context.user.id,
+          entityType: "subscription",
+          entityId: premium.subscription?.id ?? "latest",
+          metadata: {
+            plan: premium.plan,
+            expiresAt: premium.planExpiresAt?.toISOString()
+          }
+        });
+
+        return reply.status(201).send({
+          plan: premium.plan,
+          planExpiresAt: premium.planExpiresAt?.toISOString(),
+          subscription: premium.subscription
+            ? {
+                id: premium.subscription.id,
+                status: premium.subscription.status,
+                amount: premium.subscription.amount,
+                months: premium.subscription.months,
+                startsAt: premium.subscription.startsAt.toISOString(),
+                endsAt: premium.subscription.endsAt.toISOString(),
+                createdAt: premium.subscription.createdAt.toISOString(),
+                updatedAt: premium.subscription.updatedAt.toISOString()
+              }
+            : null
+        });
+      } catch (error) {
+        handleDomainError(reply, error);
+      }
     }
   });
 

@@ -5,12 +5,18 @@ import type {
   PersistenceStore,
   StoredAdminAuditLog,
   StoredBoost,
+  StoredPremiumSubscription,
   StoredListingAvailabilitySlot,
   StoredListing,
+  StoredRentalChatMessage,
+  StoredRentalContract,
+  StoredRentalPayment,
+  StoredRentalReceipt,
   StoredRental,
   StoredReport,
   StoredReview,
   StoredRiskAssessment,
+  StoredUserIdentityVerification,
   StoredUser
 } from "./store-types";
 
@@ -21,11 +27,17 @@ export type {
   PersistenceStore,
   StoredAdminAuditLog,
   StoredBoost,
+  StoredPremiumSubscription,
   StoredListing,
+  StoredRentalChatMessage,
+  StoredRentalContract,
+  StoredRentalPayment,
+  StoredRentalReceipt,
   StoredRental,
   StoredReport,
   StoredReview,
   StoredRiskAssessment,
+  StoredUserIdentityVerification,
   StoredUser
 };
 
@@ -70,6 +82,41 @@ export async function deleteUserById(userId: string): Promise<boolean> {
 
 export async function updateUserReputation(userId: string, rating: number): Promise<StoredUser | null> {
   return store.updateUserReputation(userId, rating);
+}
+
+export async function submitUserIdentityVerification(input: {
+  userId: string;
+  documentType: string;
+  documentNumberHash: string;
+  fullName: string;
+  birthDate: Date;
+}): Promise<StoredUserIdentityVerification> {
+  return store.submitUserIdentityVerification(input);
+}
+
+export async function getUserIdentityVerification(userId: string): Promise<StoredUserIdentityVerification | null> {
+  return store.getUserIdentityVerification(userId);
+}
+
+export async function reviewUserIdentityVerification(input: {
+  userId: string;
+  status: StoredUser["identityVerificationStatus"];
+  notes?: string;
+}): Promise<StoredUserIdentityVerification | null> {
+  return store.reviewUserIdentityVerification(input);
+}
+
+export async function createPremiumSubscription(input: {
+  userId: string;
+  amount: number;
+  months: number;
+  status?: StoredPremiumSubscription["status"];
+}): Promise<StoredPremiumSubscription> {
+  return store.createPremiumSubscription(input);
+}
+
+export async function getLatestPremiumSubscription(userId: string): Promise<StoredPremiumSubscription | null> {
+  return store.getLatestPremiumSubscription(userId);
 }
 
 export async function createListingRecord(input: {
@@ -163,6 +210,12 @@ export async function createRentalRecord(input: {
   startDate: Date;
   endDate: Date;
   totalPrice: number;
+  fulfillmentMethod?: StoredRental["fulfillmentMethod"];
+  deliveryAddress?: string;
+  platformFee?: number;
+  depositAmount?: number;
+  signalAmount?: number;
+  remainderAmount?: number;
   status: StoredRental["status"];
 }): Promise<StoredRental> {
   return store.createRentalRecord(input);
@@ -185,6 +238,83 @@ export async function updateRentalStatus(
   status: StoredRental["status"]
 ): Promise<StoredRental | null> {
   return store.updateRentalStatus(rentalId, status);
+}
+
+export async function createRentalPaymentRecord(input: {
+  rentalId: string;
+  mode: StoredRentalPayment["mode"];
+  status?: StoredRentalPayment["status"];
+  totalAmount: number;
+  platformFeeAmount: number;
+  depositAmount: number;
+  signalAmount: number;
+  remainderAmount: number;
+  paidAmount?: number;
+  inAppPaymentReference?: string;
+  proofUrl?: string;
+}): Promise<StoredRentalPayment> {
+  return store.createRentalPaymentRecord(input);
+}
+
+export async function getRentalPaymentByRentalId(rentalId: string): Promise<StoredRentalPayment | null> {
+  return store.getRentalPaymentByRentalId(rentalId);
+}
+
+export async function updateRentalPaymentRecord(
+  rentalId: string,
+  input: Partial<{
+    status: StoredRentalPayment["status"];
+    paidAmount: number;
+    inAppPaymentReference: string;
+    proofUrl: string;
+  }>
+): Promise<StoredRentalPayment | null> {
+  return store.updateRentalPaymentRecord(rentalId, input);
+}
+
+export async function createRentalContractRecord(input: {
+  rentalId: string;
+  termsVersion: string;
+  contractText: string;
+  checksum: string;
+}): Promise<StoredRentalContract> {
+  return store.createRentalContractRecord(input);
+}
+
+export async function getRentalContractByRentalId(rentalId: string): Promise<StoredRentalContract | null> {
+  return store.getRentalContractByRentalId(rentalId);
+}
+
+export async function acceptRentalContract(input: {
+  rentalId: string;
+  acceptedBy: "TENANT" | "OWNER";
+}): Promise<StoredRentalContract | null> {
+  return store.acceptRentalContract(input);
+}
+
+export async function createRentalReceiptRecord(input: {
+  rentalId: string;
+  receiptNumber: string;
+  issuedAt: Date;
+  payload: Record<string, unknown>;
+}): Promise<StoredRentalReceipt> {
+  return store.createRentalReceiptRecord(input);
+}
+
+export async function getRentalReceiptByRentalId(rentalId: string): Promise<StoredRentalReceipt | null> {
+  return store.getRentalReceiptByRentalId(rentalId);
+}
+
+export async function createRentalChatMessage(input: {
+  rentalId: string;
+  senderId: string;
+  message: string;
+}): Promise<StoredRentalChatMessage> {
+  return store.createRentalChatMessage(input);
+}
+
+export async function listRentalChatMessages(rentalId: string): Promise<StoredRentalChatMessage[]> {
+  return store.listRentalChatMessages(rentalId);
 }
 
 export async function findReviewByRentalAndReviewer(

@@ -41,6 +41,25 @@ enum RentalStatus {
   DISPUTED
 }
 
+enum RentalPaymentMode {
+  IN_APP_FULL
+  SPLIT_SIGNAL_REMAINDER
+}
+
+enum RentalPaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum RentalFulfillmentMethod {
+  PICKUP_LOCAL
+  DELIVERY_PARTNER
+  DELIVERY_OWNER
+}
+
 enum ReportStatus {
   OPEN
   TRIAGED
@@ -63,6 +82,23 @@ enum RiskLevel {
   CRITICAL
 }
 
+enum IdentityVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum UserPlan {
+  FREE
+  PREMIUM
+}
+
+enum PremiumSubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
 enum ListingAvailabilityStatus {
   FREE
   BLOCKED
@@ -78,6 +114,10 @@ model User {
   isBanned        Boolean          @default(false)
   bannedAt        DateTime?
   reputationScore Int              @default(0)
+  identityVerificationStatus IdentityVerificationStatus @default(PENDING)
+  identityVerifiedAt DateTime?
+  plan            UserPlan         @default(FREE)
+  planExpiresAt   DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   listings        Listing[]        @relation("OwnerListings")
@@ -87,6 +127,9 @@ model User {
   reports         Report[]         @relation("ReporterReports")
   adminLogs       AdminAuditLog[]  @relation("AdminAuditLogs")
   riskAssessments RiskAssessment[] @relation("UserRiskAssessments")
+  rentalChatMessages RentalChatMessage[] @relation("RentalChatMessages")
+  identityVerification UserIdentityVerification?
+  premiumSubscriptions PremiumSubscription[]
   sessions        Session[]
   accounts        Account[]
 }
@@ -137,6 +180,12 @@ model Rental {
   startDate   DateTime
   endDate     DateTime
   totalPrice  Decimal      @db.Decimal(10, 2)
+  fulfillmentMethod RentalFulfillmentMethod @default(PICKUP_LOCAL)
+  deliveryAddress String?
+  platformFee Decimal     @db.Decimal(10, 2) @default(0)
+  depositAmount Decimal   @db.Decimal(10, 2) @default(0)
+  signalAmount Decimal    @db.Decimal(10, 2) @default(0)
+  remainderAmount Decimal @db.Decimal(10, 2) @default(0)
   status      RentalStatus @default(REQUESTED)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -144,6 +193,10 @@ model Rental {
   tenant      User         @relation("TenantRentals", fields: [tenantId], references: [id], onDelete: Cascade)
   reviews     Review[]
   reports     Report[]
+  payment     RentalPayment?
+  contract    RentalContract?
+  receipt     RentalReceipt?
+  chatMessages RentalChatMessage[]
 }
 
 model Review {
@@ -212,6 +265,90 @@ model RiskAssessment {
   createdAt DateTime  @default(now())
   user      User?     @relation("UserRiskAssessments", fields: [userId], references: [id], onDelete: SetNull)
   listing   Listing?  @relation("ListingRiskAssessments", fields: [listingId], references: [id], onDelete: SetNull)
+}
+
+model UserIdentityVerification {
+  id                 String                     @id @default(uuid())
+  userId             String                     @unique
+  documentType       String
+  documentNumberHash String
+  fullName           String
+  birthDate          DateTime
+  status             IdentityVerificationStatus @default(PENDING)
+  notes              String?
+  submittedAt        DateTime                   @default(now())
+  reviewedAt         DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  user               User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PremiumSubscription {
+  id        String                  @id @default(uuid())
+  userId    String
+  status    PremiumSubscriptionStatus @default(ACTIVE)
+  amount    Decimal                 @db.Decimal(10, 2)
+  months    Int
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model RentalPayment {
+  id                    String             @id @default(uuid())
+  rentalId              String             @unique
+  mode                  RentalPaymentMode
+  status                RentalPaymentStatus @default(PENDING)
+  totalAmount           Decimal            @db.Decimal(10, 2)
+  platformFeeAmount     Decimal            @db.Decimal(10, 2)
+  depositAmount         Decimal            @db.Decimal(10, 2)
+  signalAmount          Decimal            @db.Decimal(10, 2)
+  remainderAmount       Decimal            @db.Decimal(10, 2)
+  paidAmount            Decimal            @db.Decimal(10, 2) @default(0)
+  inAppPaymentReference String?
+  proofUrl              String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  rental                Rental             @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+}
+
+model RentalContract {
+  id                 String   @id @default(uuid())
+  rentalId           String   @unique
+  termsVersion       String
+  contractText       String
+  checksum           String
+  acceptedByTenantAt DateTime?
+  acceptedByOwnerAt  DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  rental             Rental   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+}
+
+model RentalReceipt {
+  id            String   @id @default(uuid())
+  rentalId      String   @unique
+  receiptNumber String   @unique
+  issuedAt      DateTime @default(now())
+  payload       Json
+  createdAt     DateTime @default(now())
+  rental        Rental   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+}
+
+model RentalChatMessage {
+  id        String   @id @default(uuid())
+  rentalId  String
+  senderId  String
+  message   String
+  createdAt DateTime @default(now())
+  rental    Rental   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  sender    User     @relation("RentalChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([rentalId, createdAt])
 }
 
 model Session {
